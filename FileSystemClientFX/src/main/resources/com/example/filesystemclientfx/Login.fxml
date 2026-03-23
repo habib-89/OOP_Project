@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.canvas.*?>
+
+<StackPane xmlns="http://javafx.com/javafx/8"
+           xmlns:fx="http://javafx.com/fxml"
+           fx:controller="com.example.filesystemclientfx.LoginController"
+           fx:id="rootPane"
+           styleClass="root-pane"
+           minWidth="420" minHeight="580">
+
+    <!-- Animated background canvas -->
+    <Canvas fx:id="bgCanvas" width="420" height="580"/>
+
+    <!-- Login UI on top -->
+    <VBox styleClass="login-container" alignment="CENTER" spacing="0">
+
+        <VBox styleClass="login-header" alignment="CENTER" spacing="8">
+            <Label fx:id="logoLabel" text="⬡" styleClass="logo-icon"/>
+            <Label text="FileVault" styleClass="app-title"/>
+            <Label fx:id="subtitleLabel" text="" styleClass="app-subtitle"/>
+        </VBox>
+
+        <VBox styleClass="login-card" spacing="20">
+            <Label text="Welcome back" styleClass="card-title"/>
+            <Label text="Sign in to your account" styleClass="card-subtitle"/>
+
+            <VBox spacing="6">
+                <Label text="USERNAME" styleClass="field-label"/>
+                <TextField fx:id="usernameField"
+                           promptText="Enter your username"
+                           styleClass="input-field"/>
+            </VBox>
+
+            <VBox spacing="6">
+                <Label text="PASSWORD" styleClass="field-label"/>
+                <PasswordField fx:id="passwordField"
+                               promptText="Enter your password"
+                               styleClass="input-field"/>
+            </VBox>
+
+            <Button text="Sign In"
+                    onAction="#handleLogin"
+                    styleClass="login-btn"
+                    maxWidth="Infinity"/>
+
+            <Label fx:id="messageLabel" styleClass="message-label"
+                   wrapText="true"/>
+
+            <HBox alignment="CENTER" spacing="5">
+                <Label text="Don't have an account?" styleClass="register-text"/>
+                <Button text="Register"
+                        onAction="#handleShowRegister"
+                        styleClass="link-btn"/>
+            </HBox>
+        </VBox>
+
+    </VBox>
+
+</StackPane>

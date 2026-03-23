@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.control.*?>
+
+<BorderPane xmlns="http://javafx.com/javafx/8"
+            xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.example.filesystemclientfx.AdminController"
+            styleClass="root-dark">
+
+    <top>
+        <HBox spacing="15" alignment="CENTER_LEFT"
+              style="-fx-padding: 16 20 16 20;
+                     -fx-background-color: #1a1d27;
+                     -fx-border-color: transparent transparent #2d3748 transparent;
+                     -fx-border-width: 0 0 1 0;">
+            <Label text="👑 Admin Panel"
+                   style="-fx-text-fill: #f1f5f9; -fx-font-size: 18px;
+                          -fx-font-weight: bold; -fx-font-family: Georgia;"/>
+            <Pane HBox.hgrow="ALWAYS"/>
+            <Button text="↻ Refresh" onAction="#handleRefresh"
+                    styleClass="action-btn-small"/>
+            <Button text="✕ Close" onAction="#handleClose"
+                    styleClass="action-btn-small"/>
+        </HBox>
+    </top>
+
+    <center>
+        <HBox spacing="0">
+
+            <!-- Left: Users list -->
+            <VBox prefWidth="280" spacing="0"
+                  style="-fx-background-color: #1a1d27;
+                         -fx-border-color: transparent #2d3748 transparent transparent;
+                         -fx-border-width: 0 1 0 0;">
+
+                <VBox style="-fx-padding: 16 16 10 16;" spacing="6">
+                    <Label text="REGISTERED USERS"
+                           style="-fx-text-fill: #4b5563; -fx-font-size: 11px;
+                                  -fx-font-family: Monospaced; -fx-font-weight: bold;"/>
+                    <TableView fx:id="userTable" prefHeight="400"
+                               style="-fx-background-color: transparent;">
+                        <columns>
+                            <TableColumn fx:id="usernameColumn"
+                                         text="Username" prefWidth="140"/>
+                            <TableColumn fx:id="storageColumn"
+                                         text="Storage Used" prefWidth="110"/>
+                        </columns>
+                    </TableView>
+                </VBox>
+
+                <VBox style="-fx-padding: 0 16 16 16;" spacing="8">
+                    <Button text="🗑 Delete User"
+                            onAction="#handleDeleteUser"
+                            styleClass="action-btn-danger"
+                            maxWidth="Infinity"/>
+                </VBox>
+
+            </VBox>
+
+            <!-- Right: User's files -->
+            <VBox HBox.hgrow="ALWAYS" spacing="0"
+                  style="-fx-background-color: #0f1117;">
+
+                <VBox style="-fx-padding: 16 16 10 16;" spacing="6">
+                    <Label fx:id="selectedUserLabel"
+                           text="Select a user to view their files"
+                           style="-fx-text-fill: #6b7280; -fx-font-size: 13px;
+                                  -fx-font-weight: bold;"/>
+                    <TableView fx:id="fileTable" prefHeight="400"
+                               style="-fx-background-color: transparent;">
+                        <columns>
+                            <TableColumn fx:id="fileNameColumn"
+                                         text="Name" prefWidth="260"/>
+                            <TableColumn fx:id="fileSizeColumn"
+                                         text="Size" prefWidth="100"/>
+                            <TableColumn fx:id="fileDateColumn"
+                                         text="Modified" prefWidth="160"/>
+                        </columns>
+                    </TableView>
+                </VBox>
+
+            </VBox>
+
+        </HBox>
+    </center>
+
+    <bottom>
+        <HBox style="-fx-padding: 12 20 12 20;
+                     -fx-background-color: #1a1d27;
+                     -fx-border-color: #2d3748 transparent transparent transparent;
+                     -fx-border-width: 1 0 0 0;">
+            <Label fx:id="statusLabel" text=""
+                   style="-fx-text-fill: #10b981; -fx-font-size: 12px;"/>
+        </HBox>
+    </bottom>
+
+</BorderPane>

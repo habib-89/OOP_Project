@@ -4,6 +4,8 @@ module com.example.filesystemclientfx {
     requires javafx.web;
     requires java.desktop;
     requires javafx.media;
+    requires org.apache.pdfbox;
+    requires javafx.swing;
 
 //    requires org.controlsfx.controls;
 //    requires com.dlsc.formsfx;

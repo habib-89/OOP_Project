@@ -1,300 +1,183 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<?import javafx.scene.layout.*?>
-<?import javafx.scene.control.*?>
-<?import javafx.scene.image.*?>
-<?import javafx.scene.media.*?>
 
-<BorderPane xmlns="http://javafx.com/javafx/8"
-            xmlns:fx="http://javafx.com/fxml"
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.ProgressBar?>
+<?import javafx.scene.control.Slider?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.image.ImageView?>
+<?import javafx.scene.layout.BorderPane?>
+<?import javafx.scene.layout.HBox?>
+<?import javafx.scene.layout.Priority?>
+<?import javafx.scene.layout.Region?>
+<?import javafx.scene.layout.StackPane?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.media.MediaView?>
+
+<BorderPane xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="com.example.filesystemclientfx.DashboardController"
+            prefWidth="1200.0" prefHeight="720.0"
             styleClass="root-dark">
 
-    <!-- LEFT SIDEBAR -->
     <left>
-        <VBox styleClass="sidebar" spacing="0" prefWidth="200">
-            <VBox styleClass="sidebar-brand" alignment="CENTER">
-                <Label text="⬡ FileVault" styleClass="brand-title"/>
-            </VBox>
-            <VBox styleClass="user-info" alignment="CENTER" spacing="4">
-                <Label text="👤" styleClass="user-avatar"/>
-                <Label fx:id="welcomeLabel" text="Welcome!" styleClass="user-name"/>
-            </VBox>
-            <VBox styleClass="nav-section" spacing="4">
-                <Label text="NAVIGATION" styleClass="nav-section-label"/>
-                <Button text="🏠  My Files" onAction="#handleNavFiles"
-                        styleClass="nav-btn, nav-btn-active" maxWidth="Infinity"
-                        fx:id="navFilesBtn"/>
-                <Button text="🗑  Recycle Bin" onAction="#handleNavRecycleBin"
-                        styleClass="nav-btn" maxWidth="Infinity" fx:id="navRecycleBtn"/>
-                <Button text="📤 Shared with Me" onAction="#handleNavShared"
-                        styleClass="nav-btn" maxWidth="Infinity" fx:id="navSharedBtn"/>
-                <Button text="👑 Admin Panel" onAction="#handleNavAdmin"
-                        styleClass="nav-btn" maxWidth="Infinity"
-                        fx:id="navAdminBtn" visible="false" managed="false"/>
-            </VBox>
-            <Pane VBox.vgrow="ALWAYS"/>
-            <VBox styleClass="sidebar-bottom" spacing="8">
-                <Button fx:id="themeToggleBtn" text="☀ Light Mode"
-                        onAction="#handleThemeToggle" styleClass="theme-btn" maxWidth="Infinity"/>
-                <Button text="⇥  Logout" onAction="#handleLogout"
-                        styleClass="logout-btn" maxWidth="Infinity"/>
-            </VBox>
+        <VBox spacing="0.0" styleClass="sidebar" prefWidth="210.0">
+            <children>
+                <VBox styleClass="sidebar-brand">
+                    <children>
+                        <Label text="FILEVAULT" styleClass="brand-title"/>
+                    </children>
+                </VBox>
+
+                <VBox styleClass="user-info" spacing="8.0">
+                    <children>
+                        <Label text="USER" styleClass="nav-section-label"/>
+                        <Label fx:id="welcomeLabel" text="username" styleClass="user-name"/>
+                    </children>
+                </VBox>
+
+                <VBox styleClass="nav-section" spacing="4.0">
+                    <children>
+                        <Label text="NAVIGATION" styleClass="nav-section-label"/>
+                        <Button fx:id="navFilesBtn" text="📁  My Files" onAction="#handleNavFiles" styleClass="nav-btn nav-btn-active" maxWidth="1.7976931348623157E308"/>
+                        <Button fx:id="navSharedBtn" text="📤  Shared" onAction="#handleNavShared" styleClass="nav-btn" maxWidth="1.7976931348623157E308"/>
+                        <Button fx:id="navGroupsBtn" text="👥  Groups" onAction="#handleNavGroups" styleClass="nav-btn" maxWidth="1.7976931348623157E308"/>
+                        <Button fx:id="navRecycleBtn" text="🗑  Recycle Bin" onAction="#handleNavRecycleBin" styleClass="nav-btn" maxWidth="1.7976931348623157E308"/>
+                        <Button fx:id="navAdminBtn" text="🛠  Admin" onAction="#handleNavAdmin" styleClass="nav-btn" maxWidth="1.7976931348623157E308" visible="false" managed="false"/>
+                    </children>
+                </VBox>
+
+                <Region VBox.vgrow="ALWAYS"/>
+
+                <VBox styleClass="sidebar-bottom" spacing="8.0">
+                    <children>
+                        <Button fx:id="themeToggleBtn" text="☀ Light Mode" onAction="#handleThemeToggle" styleClass="theme-btn" maxWidth="1.7976931348623157E308"/>
+                        <Button text="↩ Logout" onAction="#handleLogout" styleClass="logout-btn" maxWidth="1.7976931348623157E308"/>
+                    </children>
+                </VBox>
+            </children>
         </VBox>
     </left>
 
-    <!-- MAIN CONTENT -->
     <center>
-        <VBox styleClass="main-content" spacing="0">
+        <BorderPane styleClass="main-content">
+            <top>
+                <VBox>
+                    <children>
+                        <HBox fx:id="searchBar" styleClass="top-bar" alignment="CENTER_LEFT" spacing="12.0">
+                            <children>
+                                <Label fx:id="pathLabel" text="/ Home" styleClass="path-label"/>
+                                <Region HBox.hgrow="ALWAYS"/>
+                                <Label fx:id="statusLabel" text="Ready." styleClass="status-label"/>
+                            </children>
+                        </HBox>
 
-            <!-- Top bar -->
-            <HBox styleClass="top-bar" alignment="CENTER_LEFT" spacing="15">
-                <VBox spacing="2" HBox.hgrow="ALWAYS">
-                    <Label fx:id="pathLabel" text="/ Home" styleClass="path-label"/>
-                    <Label fx:id="statusLabel" text="" styleClass="status-label"/>
+                        <HBox styleClass="search-bar" spacing="8.0" alignment="CENTER_LEFT">
+                            <children>
+                                <TextField fx:id="searchField" promptText="Search files..." onAction="#handleSearch" styleClass="search-input" HBox.hgrow="ALWAYS"/>
+                                <Button text="Search" onAction="#handleSearch" styleClass="action-btn-small"/>
+                                <Button text="Refresh" onAction="#handleRefresh" styleClass="action-btn-small"/>
+                            </children>
+                        </HBox>
+
+                        <HBox fx:id="actionBar" styleClass="action-bar" spacing="8.0" alignment="CENTER_LEFT">
+                            <children>
+                                <Button text="⬆ Upload" onAction="#handleUpload" styleClass="action-btn-primary"/>
+                                <Button text="⬇ Download" onAction="#handleDownload" styleClass="action-btn"/>
+                                <Button text="📁 Folder" onAction="#handleCreateFolder" styleClass="action-btn"/>
+                                <Button text="✏ Rename" onAction="#handleRename" styleClass="action-btn"/>
+                                <Button text="📦 Move" onAction="#handleMoveFile" styleClass="action-btn"/>
+                                <Button text="📤 Share / Add Member" onAction="#handleShare" styleClass="action-btn"/>
+                                <Button text="🗑 Delete" onAction="#handleDelete" styleClass="action-btn-danger"/>
+                                <Button text="⬅ Up" onAction="#handleGoUp" styleClass="action-btn-small"/>
+                                <Button text="⭐ Bookmark" onAction="#handleAddBookmark" styleClass="action-btn-small"/>
+                                <Button text="👥 Create Group" onAction="#handleCreateGroup" styleClass="action-btn-small"/>
+                                <Button text="➕ Add Group Member" onAction="#handleAddGroupMember" styleClass="action-btn-small"/>
+                                <Button fx:id="sortBtn" text="↕ Sort" onAction="#handleSort" styleClass="action-btn-small"/>
+                            </children>
+                        </HBox>
+
+                        <HBox fx:id="bookmarkButtonsBox" spacing="6.0">
+                            <padding>
+                                <Insets top="8.0" right="24.0" bottom="8.0" left="24.0"/>
+                            </padding>
+                        </HBox>
+
+                        <HBox spacing="6.0">
+                            <padding>
+                                <Insets top="0.0" right="24.0" bottom="0.0" left="24.0"/>
+                            </padding>
+                            <children>
+                                <Button text="+ New Tab" onAction="#handleNewTab" styleClass="action-btn-small"/>
+                                <HBox fx:id="tabButtonsBox" spacing="6.0"/>
+                            </children>
+                        </HBox>
+
+                        <VBox spacing="4.0">
+                            <padding>
+                                <Insets top="4.0" right="24.0" bottom="4.0" left="24.0"/>
+                            </padding>
+                            <children>
+                                <ProgressBar fx:id="uploadProgressBar" visible="false" managed="false" prefWidth="500.0" styleClass="upload-progress"/>
+                                <Label fx:id="progressLabel" text="Progress" visible="false" managed="false" styleClass="progress-label"/>
+                            </children>
+                        </VBox>
+                    </children>
                 </VBox>
-                <Button text="⬆ Up" onAction="#handleGoUp"
-                        styleClass="action-btn-small" fx:id="goUpBtn"/>
-                <Button text="↻ Refresh" onAction="#handleRefresh"
-                        styleClass="action-btn-small" fx:id="refreshBtn"/>
-            </HBox>
+            </top>
 
-            <!-- TAB BAR -->
-            <HBox fx:id="tabBar" spacing="0" alignment="CENTER_LEFT"
-                  style="-fx-background-color: #0a0e1a;
-                         -fx-border-color: transparent transparent rgba(0,212,255,0.15) transparent;
-                         -fx-border-width: 0 0 1 0; -fx-padding: 5 10 0 10;">
-                <HBox fx:id="tabButtonsBox" spacing="3" alignment="CENTER_LEFT"/>
-                <Button text="＋" onAction="#handleNewTab"
-                        style="-fx-background-color: transparent;
-                               -fx-text-fill: rgba(0,212,255,0.6); -fx-font-size: 16px;
-                               -fx-cursor: hand; -fx-border-width: 0; -fx-padding: 2 10 2 10;"/>
-            </HBox>
+            <center>
+                <HBox spacing="0.0">
+                    <children>
+                        <VBox fx:id="tableContainer" HBox.hgrow="ALWAYS" spacing="0.0">
+                            <padding>
+                                <Insets top="8.0" right="0.0" bottom="8.0" left="24.0"/>
+                            </padding>
+                        </VBox>
 
-            <!-- Search bar -->
-            <HBox styleClass="search-bar" spacing="10" alignment="CENTER_LEFT" fx:id="searchBar">
-                <TextField fx:id="searchField"
-                           promptText="🔍  Search files and folders..."
-                           styleClass="search-input" HBox.hgrow="ALWAYS"
-                           onKeyReleased="#handleSearch"/>
-            </HBox>
+                        <VBox prefWidth="300.0" styleClass="preview-panel" spacing="14.0">
+                            <children>
+                                <Label text="PREVIEW" styleClass="preview-title"/>
+                                <HBox fx:id="fileView" alignment="CENTER">
+                                    <children>
+                                        <VBox spacing="12.0" alignment="TOP_CENTER">
+                                            <children>
+                                                <ImageView fx:id="imagePreview" fitWidth="240.0" fitHeight="260.0" preserveRatio="true" visible="false"/>
+                                                <Label fx:id="previewLabel" text="Select a file to preview" wrapText="true" styleClass="preview-hint"/>
+                                            </children>
+                                        </VBox>
+                                    </children>
+                                </HBox>
 
-            <!-- Action buttons -->
-            <HBox styleClass="action-bar" spacing="8" alignment="CENTER_LEFT" fx:id="actionBar">
-                <Button text="📁 New Folder" onAction="#handleCreateFolder" styleClass="action-btn"/>
-                <Button text="⬆ Upload" onAction="#handleUpload" styleClass="action-btn-primary"/>
-                <Button text="⬇ Download" onAction="#handleDownload" styleClass="action-btn"/>
-                <Button text="📤 Share" onAction="#handleShare" styleClass="action-btn"/>
-                <Button text="✏ Rename" onAction="#handleRename" styleClass="action-btn"/>
-                <Button text="➡ Move" onAction="#handleMoveFile" styleClass="action-btn"/>
-                <Button fx:id="sortBtn" text="↕ Sort" onAction="#handleSort" styleClass="action-btn"/>
-                <Button text="🗑 Delete" onAction="#handleDelete" styleClass="action-btn-danger"/>
-            </HBox>
-
-            <!-- Bookmarks bar -->
-            <HBox fx:id="bookmarksBar" spacing="6" alignment="CENTER_LEFT"
-                  style="-fx-padding: 6 16 6 16;
-                         -fx-background-color: rgba(0,212,255,0.03);
-                         -fx-border-color: transparent transparent rgba(0,212,255,0.12) transparent;
-                         -fx-border-width: 0 0 1 0;">
-                <Label text="⭐" style="-fx-text-fill: rgba(0,212,255,0.5); -fx-font-size: 11px;"/>
-                <ScrollPane fx:id="bookmarksScroll" hbarPolicy="NEVER" vbarPolicy="NEVER"
-                            fitToHeight="true" HBox.hgrow="ALWAYS"
-                            style="-fx-background-color: transparent; -fx-background: transparent;
-                                   -fx-border-width: 0; -fx-padding: 0;">
-                    <HBox fx:id="bookmarkButtonsBox" spacing="5" alignment="CENTER_LEFT"
-                          style="-fx-padding: 0;"/>
-                </ScrollPane>
-                <Button text="+ Bookmark" onAction="#handleAddBookmark"
-                        style="-fx-background-color: transparent;
-                               -fx-text-fill: rgba(0,212,255,0.5); -fx-font-size: 10px;
-                               -fx-font-family: 'Courier New'; -fx-cursor: hand;
-                               -fx-border-color: rgba(0,212,255,0.2); -fx-border-width: 1;
-                               -fx-border-radius: 5; -fx-background-radius: 5;
-                               -fx-padding: 3 8 3 8;"/>
-            </HBox>
-
-            <!-- Progress bar -->
-            <VBox styleClass="progress-section" spacing="4">
-                <ProgressBar fx:id="uploadProgressBar" prefWidth="99999"
-                             progress="0" visible="false" styleClass="upload-progress"/>
-                <Label fx:id="progressLabel" text="" styleClass="progress-label" visible="false"/>
-            </VBox>
-
-            <!-- FILE VIEW -->
-            <HBox fx:id="fileView" spacing="0" VBox.vgrow="ALWAYS">
-
-                <!-- Table container: tabs swap their TableView here -->
-                <VBox fx:id="tableContainer" HBox.hgrow="ALWAYS" spacing="0" VBox.vgrow="ALWAYS"/>
-
-                <!-- Preview panel -->
-                <VBox styleClass="preview-panel" spacing="12"
-                      alignment="TOP_CENTER" prefWidth="240">
-                    <Label text="PREVIEW" styleClass="preview-title"/>
-                    <ImageView fx:id="imagePreview" fitWidth="200" fitHeight="200"
-                               preserveRatio="true" visible="false"/>
-                    <Label fx:id="previewLabel" text="Select a file to preview"
-                           styleClass="preview-hint" wrapText="true"/>
-                </VBox>
-
-            </HBox>
-
-            <!-- VIDEO PLAYER VIEW -->
-            <VBox fx:id="videoView" VBox.vgrow="ALWAYS" visible="false" managed="false"
-                  style="-fx-background-color: #000000;">
-                <HBox alignment="CENTER_LEFT" spacing="12"
-                      style="-fx-padding: 10 16 10 16; -fx-background-color: #0a0e1a;
-                             -fx-border-color: transparent transparent rgba(0,212,255,0.2) transparent;
-                             -fx-border-width: 0 0 1 0;">
-                    <Label text="🎬" style="-fx-font-size: 16px;"/>
-                    <Label fx:id="videoTitleLabel" text=""
-                           style="-fx-text-fill: #ffffff; -fx-font-size: 13px;
-                                  -fx-font-weight: bold; -fx-font-family: 'Courier New';"/>
-                    <Pane HBox.hgrow="ALWAYS"/>
-                    <Button text="◀ Back to Files" onAction="#handleBackFromVideo"
-                            style="-fx-background-color: rgba(0,212,255,0.08);
-                                   -fx-text-fill: #00d4ff; -fx-font-size: 11px;
-                                   -fx-font-family: 'Courier New'; -fx-background-radius: 7;
-                                   -fx-padding: 7 14 7 14; -fx-cursor: hand;
-                                   -fx-border-color: rgba(0,212,255,0.3);
-                                   -fx-border-width: 1; -fx-border-radius: 7;"/>
+                                <VBox fx:id="videoView" visible="false" managed="false" spacing="10.0">
+                                    <children>
+                                        <Label fx:id="videoTitleLabel" text="Video" styleClass="path-label"/>
+                                        <MediaView fx:id="mediaView" fitWidth="260.0" fitHeight="220.0" preserveRatio="true"/>
+                                        <HBox spacing="6.0" alignment="CENTER">
+                                            <children>
+                                                <Button text="⏪ 10s" onAction="#handleVideoRewind" styleClass="action-btn-small"/>
+                                                <Button fx:id="playPauseBtn" text="▶" onAction="#handleVideoPlayPause" styleClass="action-btn-small"/>
+                                                <Button text="10s ⏩" onAction="#handleVideoForward" styleClass="action-btn-small"/>
+                                                <Button fx:id="muteBtn" text="🔊" onAction="#handleVideoMute" styleClass="action-btn-small"/>
+                                            </children>
+                                        </HBox>
+                                        <Slider fx:id="seekSlider"/>
+                                        <HBox spacing="8.0" alignment="CENTER">
+                                            <children>
+                                                <Label fx:id="currentTimeLabel" text="00:00" styleClass="status-label"/>
+                                                <Region HBox.hgrow="ALWAYS"/>
+                                                <Label text="Volume" styleClass="status-label"/>
+                                                <Slider fx:id="volumeSlider" prefWidth="90.0" value="70.0"/>
+                                                <Label fx:id="totalTimeLabel" text="00:00" styleClass="status-label"/>
+                                            </children>
+                                        </HBox>
+                                        <Button text="← Back to Files" onAction="#handleBackFromVideo" styleClass="action-btn-small"/>
+                                    </children>
+                                </VBox>
+                            </children>
+                        </VBox>
+                    </children>
                 </HBox>
-                <StackPane VBox.vgrow="ALWAYS" maxHeight="380"
-                           style="-fx-background-color: #000000;">
-                    <MediaView fx:id="mediaView" preserveRatio="true"/>
-                </StackPane>
-                <VBox style="-fx-padding: 10 16 4 16; -fx-background-color: #0a0e1a;">
-                    <Slider fx:id="seekSlider" min="0" value="0" style="-fx-accent: #00d4ff;"/>
-                    <HBox>
-                        <Label fx:id="currentTimeLabel" text="00:00"
-                               style="-fx-text-fill: rgba(0,212,255,0.7);
-                                      -fx-font-size: 11px; -fx-font-family: 'Courier New';"/>
-                        <Pane HBox.hgrow="ALWAYS"/>
-                        <Label fx:id="totalTimeLabel" text="00:00"
-                               style="-fx-text-fill: rgba(0,212,255,0.7);
-                                      -fx-font-size: 11px; -fx-font-family: 'Courier New';"/>
-                    </HBox>
-                </VBox>
-                <HBox alignment="CENTER" spacing="12"
-                      style="-fx-padding: 10 16 14 16; -fx-background-color: #0a0e1a;
-                             -fx-border-color: rgba(0,212,255,0.15) transparent transparent transparent;
-                             -fx-border-width: 1 0 0 0;">
-                    <Button fx:id="rewindBtn" text="⏮ -10s" onAction="#handleVideoRewind"
-                            style="-fx-background-color: rgba(0,212,255,0.08);
-                                   -fx-text-fill: #00d4ff; -fx-font-size: 12px;
-                                   -fx-font-family: 'Courier New'; -fx-background-radius: 8;
-                                   -fx-padding: 8 14 8 14; -fx-cursor: hand;
-                                   -fx-border-color: rgba(0,212,255,0.3);
-                                   -fx-border-width: 1; -fx-border-radius: 8;"/>
-                    <Button fx:id="playPauseBtn" text="▶" onAction="#handleVideoPlayPause"
-                            style="-fx-background-color: #00d4ff; -fx-text-fill: #020408;
-                                   -fx-font-size: 16px; -fx-font-weight: bold;
-                                   -fx-background-radius: 50; -fx-padding: 8 18 8 18;
-                                   -fx-cursor: hand;
-                                   -fx-effect: dropshadow(gaussian, #00d4ff, 15, 0.6, 0, 0);"/>
-                    <Button fx:id="forwardBtn" text="+10s ⏭" onAction="#handleVideoForward"
-                            style="-fx-background-color: rgba(0,212,255,0.08);
-                                   -fx-text-fill: #00d4ff; -fx-font-size: 12px;
-                                   -fx-font-family: 'Courier New'; -fx-background-radius: 8;
-                                   -fx-padding: 8 14 8 14; -fx-cursor: hand;
-                                   -fx-border-color: rgba(0,212,255,0.3);
-                                   -fx-border-width: 1; -fx-border-radius: 8;"/>
-                    <Pane HBox.hgrow="ALWAYS"/>
-                    <Button fx:id="muteBtn" text="🔊" onAction="#handleVideoMute"
-                            style="-fx-background-color: transparent; -fx-text-fill: #00d4ff;
-                                   -fx-font-size: 16px; -fx-cursor: hand; -fx-border-width: 0;"/>
-                    <Slider fx:id="volumeSlider" min="0" max="100" value="80"
-                            prefWidth="100" style="-fx-accent: #00d4ff;"/>
-                </HBox>
-            </VBox>
-
-            <!-- FILE VIEWER (Image + PDF) -->
-            <VBox fx:id="fileViewerPanel" VBox.vgrow="ALWAYS"
-                  visible="false" managed="false"
-                  style="-fx-background-color: #020408;">
-
-                <!-- Viewer top bar -->
-                <HBox alignment="CENTER_LEFT" spacing="12"
-                      style="-fx-padding: 10 16 10 16; -fx-background-color: #0a0e1a;
-                             -fx-border-color: transparent transparent rgba(0,212,255,0.2) transparent;
-                             -fx-border-width: 0 0 1 0;">
-                    <Label fx:id="viewerIconLabel" text="🖼"
-                           style="-fx-font-size: 16px;"/>
-                    <Label fx:id="viewerTitleLabel" text=""
-                           style="-fx-text-fill: #ffffff; -fx-font-size: 13px;
-                                  -fx-font-weight: bold; -fx-font-family: 'Courier New';"/>
-                    <Pane HBox.hgrow="ALWAYS"/>
-                    <!-- PDF page controls (hidden for images) -->
-                    <HBox fx:id="pdfPageControls" spacing="8" alignment="CENTER"
-                          visible="false" managed="false">
-                        <Button text="◀" onAction="#handlePrevPage"
-                                style="-fx-background-color: rgba(0,212,255,0.08);
-                                       -fx-text-fill: #00d4ff; -fx-font-size: 12px;
-                                       -fx-background-radius: 6; -fx-padding: 5 12 5 12;
-                                       -fx-cursor: hand; -fx-border-color: rgba(0,212,255,0.3);
-                                       -fx-border-width: 1; -fx-border-radius: 6;"/>
-                        <Label fx:id="pageLabel" text="Page 1 / 1"
-                               style="-fx-text-fill: rgba(0,212,255,0.7); -fx-font-size: 11px;
-                                      -fx-font-family: 'Courier New';"/>
-                        <Button text="▶" onAction="#handleNextPage"
-                                style="-fx-background-color: rgba(0,212,255,0.08);
-                                       -fx-text-fill: #00d4ff; -fx-font-size: 12px;
-                                       -fx-background-radius: 6; -fx-padding: 5 12 5 12;
-                                       -fx-cursor: hand; -fx-border-color: rgba(0,212,255,0.3);
-                                       -fx-border-width: 1; -fx-border-radius: 6;"/>
-                    </HBox>
-                    <!-- Zoom controls -->
-                    <Button text="🔍−" onAction="#handleZoomOut"
-                            style="-fx-background-color: rgba(0,212,255,0.08);
-                                   -fx-text-fill: #00d4ff; -fx-font-size: 12px;
-                                   -fx-background-radius: 6; -fx-padding: 5 12 5 12;
-                                   -fx-cursor: hand; -fx-border-color: rgba(0,212,255,0.3);
-                                   -fx-border-width: 1; -fx-border-radius: 6;"/>
-                    <Label fx:id="zoomLabel" text="100%"
-                           style="-fx-text-fill: rgba(0,212,255,0.7); -fx-font-size: 11px;
-                                  -fx-font-family: 'Courier New';"/>
-                    <Button text="🔍+" onAction="#handleZoomIn"
-                            style="-fx-background-color: rgba(0,212,255,0.08);
-                                   -fx-text-fill: #00d4ff; -fx-font-size: 12px;
-                                   -fx-background-radius: 6; -fx-padding: 5 12 5 12;
-                                   -fx-cursor: hand; -fx-border-color: rgba(0,212,255,0.3);
-                                   -fx-border-width: 1; -fx-border-radius: 6;"/>
-                    <!-- Rotate (images only) -->
-                    <Button fx:id="rotateBtn" text="↻ Rotate" onAction="#handleRotate"
-                            visible="false" managed="false"
-                            style="-fx-background-color: rgba(0,212,255,0.08);
-                                   -fx-text-fill: #00d4ff; -fx-font-size: 12px;
-                                   -fx-font-family: 'Courier New'; -fx-background-radius: 6;
-                                   -fx-padding: 5 12 5 12; -fx-cursor: hand;
-                                   -fx-border-color: rgba(0,212,255,0.3);
-                                   -fx-border-width: 1; -fx-border-radius: 6;"/>
-                    <!-- Download -->
-                    <Button text="⬇ Download" onAction="#handleViewerDownload"
-                            style="-fx-background-color: rgba(0,212,255,0.08);
-                                   -fx-text-fill: #00d4ff; -fx-font-size: 12px;
-                                   -fx-font-family: 'Courier New'; -fx-background-radius: 6;
-                                   -fx-padding: 5 12 5 12; -fx-cursor: hand;
-                                   -fx-border-color: rgba(0,212,255,0.3);
-                                   -fx-border-width: 1; -fx-border-radius: 6;"/>
-                    <Button text="◀ Back to Files" onAction="#handleBackFromViewer"
-                            style="-fx-background-color: rgba(0,212,255,0.08);
-                                   -fx-text-fill: #00d4ff; -fx-font-size: 11px;
-                                   -fx-font-family: 'Courier New'; -fx-background-radius: 7;
-                                   -fx-padding: 7 14 7 14; -fx-cursor: hand;
-                                   -fx-border-color: rgba(0,212,255,0.3);
-                                   -fx-border-width: 1; -fx-border-radius: 7;"/>
-                </HBox>
-
-                <!-- Image/PDF display area -->
-                <ScrollPane fx:id="viewerScrollPane" VBox.vgrow="ALWAYS"
-                            fitToWidth="true" fitToHeight="false"
-                            style="-fx-background-color: #0a0a0a; -fx-background: #0a0a0a;
-                                   -fx-border-width: 0;">
-                    <StackPane style="-fx-background-color: #0a0a0a; -fx-padding: 20;">
-                        <ImageView fx:id="viewerImageView"
-                                   preserveRatio="true"/>
-                    </StackPane>
-                </ScrollPane>
-
             </VBox>
 
         </VBox>

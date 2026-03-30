@@ -41,10 +41,12 @@ public class LoginController {
     @FXML
     public void initialize() {
         // Load session
-        String[] session = SessionManager.loadSession();
-        if (session != null) {
-            usernameField.setText(session[0]);
-            passwordField.setText(session[1]);
+        if (System.getProperty("filevault.nosession") == null) {
+            String[] session = SessionManager.loadSession();
+            if (session != null) {
+                usernameField.setText(session[0]);
+                passwordField.setText(session[1]);
+            }
         }
 
         // Initialize particles

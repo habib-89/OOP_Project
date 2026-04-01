@@ -43,6 +43,8 @@ public class DashboardController {
     @FXML private javafx.scene.layout.HBox actionBar;
     @FXML private javafx.scene.layout.HBox bookmarkButtonsBox;
     @FXML private Button sortBtn;
+    @FXML private Button createGroupBtn;
+    @FXML private Button addGroupMemberBtn;
     @FXML private javafx.scene.layout.HBox tabButtonsBox;
     @FXML private javafx.scene.layout.VBox tableContainer;
 
@@ -55,26 +57,6 @@ public class DashboardController {
     @FXML private Label totalTimeLabel;
     @FXML private Label videoTitleLabel;
     @FXML private Button muteBtn;
-
-    // ===== FILE VIEWER =====
-    @FXML private javafx.scene.layout.VBox fileViewerPanel;
-    @FXML private javafx.scene.control.ScrollPane viewerScrollPane;
-    @FXML private ImageView viewerImageView;
-    @FXML private Label viewerTitleLabel;
-    @FXML private Label viewerIconLabel;
-    @FXML private Label pageLabel;
-    @FXML private Label zoomLabel;
-    @FXML private javafx.scene.layout.HBox pdfPageControls;
-    @FXML private Button rotateBtn;
-
-    // Viewer state
-    private double viewerZoom = 1.0;
-    private int rotateAngle = 0;
-    private int currentPage = 0;
-    private int totalPages = 0;
-    private org.apache.pdfbox.pdmodel.PDDocument currentPdfDoc = null;
-    private File currentViewerFile = null;
-    private boolean viewerIsPdf = false;
 
     private MediaPlayer mediaPlayer;
     private boolean videoPlaying = false;
@@ -112,9 +94,7 @@ public class DashboardController {
         seekSlider.setOnMousePressed(e -> seekDragging = true);
         seekSlider.setOnMouseReleased(e -> {
             seekDragging = false;
-            if (mediaPlayer != null) {
-                mediaPlayer.seek(Duration.seconds(seekSlider.getValue()));
-            }
+            if (mediaPlayer != null) mediaPlayer.seek(Duration.seconds(seekSlider.getValue()));
         });
 
         volumeSlider.valueProperty().addListener((obs, o, n) -> {
@@ -124,14 +104,7 @@ public class DashboardController {
             }
         });
 
-        if (uploadProgressBar != null) {
-            uploadProgressBar.setVisible(false);
-            uploadProgressBar.setManaged(false);
-        }
-        if (progressLabel != null) {
-            progressLabel.setVisible(false);
-            progressLabel.setManaged(false);
-        }
+        setProgressVisible(false);
         if (videoView != null) {
             videoView.setVisible(false);
             videoView.setManaged(false);
@@ -151,16 +124,12 @@ public class DashboardController {
         this.network = network;
         openNewTab("");
         loadBookmarksBar();
-
-        if (navGroupsBtn != null) {
-            navGroupsBtn.setVisible(true);
-            navGroupsBtn.setManaged(true);
-        }
+        updateGroupButtons();
     }
 
     @FXML
     private void handleNewTab() {
-        openNewTab("");
+        openNewTab(activeTab != null ? activeTab.currentPath : "");
     }
 
     private void openNewTab(String startPath) {
@@ -221,158 +190,8 @@ public class DashboardController {
         refreshCurrentView();
     }
 
-    // ===================== FILE VIEWER =====================
-
-    private void showFileViewer(File file, String filename, boolean isPdf) {
-        fileView.setVisible(false);   fileView.setManaged(false);
-        searchBar.setVisible(false);  searchBar.setManaged(false);
-        actionBar.setVisible(false);  actionBar.setManaged(false);
-        fileViewerPanel.setVisible(true); fileViewerPanel.setManaged(true);
-
-        viewerTitleLabel.setText(filename);
-        viewerZoom = 1.0;
-        rotateAngle = 0;
-        zoomLabel.setText("100%");
-        currentViewerFile = file;
-        viewerIsPdf = isPdf;
-
-        if (isPdf) {
-            viewerIconLabel.setText("📄");
-            pdfPageControls.setVisible(true);
-            pdfPageControls.setManaged(true);
-            rotateBtn.setVisible(false);
-            rotateBtn.setManaged(false);
-            openPdf(file);
-        } else {
-            viewerIconLabel.setText("🖼");
-            pdfPageControls.setVisible(false);
-            pdfPageControls.setManaged(false);
-            rotateBtn.setVisible(true);
-            rotateBtn.setManaged(true);
-            showImage(file);
-        }
-    }
-
-    private void showImage(File file) {
-        try {
-            javafx.scene.image.Image image =
-                    new javafx.scene.image.Image(new FileInputStream(file));
-            viewerImageView.setImage(image);
-            viewerImageView.setFitWidth(image.getWidth() * viewerZoom);
-            viewerImageView.setFitHeight(image.getHeight() * viewerZoom);
-            viewerImageView.setRotate(rotateAngle);
-            viewerImageView.setPreserveRatio(true);
-        } catch (Exception e) {
-            statusLabel.setText("Error loading image: " + e.getMessage());
-        }
-    }
-
-    private void openPdf(File file) {
-        try {
-            if (currentPdfDoc != null) {
-                currentPdfDoc.close();
-                currentPdfDoc = null;
-            }
-            currentPdfDoc = org.apache.pdfbox.Loader.loadPDF(file);
-            totalPages = currentPdfDoc.getNumberOfPages();
-            currentPage = 0;
-            renderPdfPage();
-        } catch (Exception e) {
-            statusLabel.setText("Error opening PDF: " + e.getMessage());
-        }
-    }
-
-    private void renderPdfPage() {
-        try {
-            org.apache.pdfbox.rendering.PDFRenderer renderer =
-                    new org.apache.pdfbox.rendering.PDFRenderer(currentPdfDoc);
-            float dpi = 150 * (float) viewerZoom;
-            java.awt.image.BufferedImage buffered = renderer.renderImageWithDPI(currentPage, dpi);
-
-            // Convert BufferedImage to JavaFX Image
-            javafx.scene.image.WritableImage fxImage =
-                    new javafx.scene.image.WritableImage(buffered.getWidth(), buffered.getHeight());
-            javafx.embed.swing.SwingFXUtils.toFXImage(buffered, fxImage);
-
-            viewerImageView.setImage(fxImage);
-            viewerImageView.setFitWidth(buffered.getWidth());
-            viewerImageView.setFitHeight(buffered.getHeight());
-            viewerImageView.setPreserveRatio(true);
-
-            pageLabel.setText("Page " + (currentPage + 1) + " / " + totalPages);
-        } catch (Exception e) {
-            statusLabel.setText("Error rendering PDF: " + e.getMessage());
-        }
-    }
-
-    @FXML
-    private void handlePrevPage() {
-        if (currentPage > 0) { currentPage--; renderPdfPage(); }
-    }
-
-    @FXML
-    private void handleNextPage() {
-        if (currentPage < totalPages - 1) { currentPage++; renderPdfPage(); }
-    }
-
-    @FXML
-    private void handleZoomIn() {
-        viewerZoom = Math.min(viewerZoom + 0.25, 4.0);
-        zoomLabel.setText((int)(viewerZoom * 100) + "%");
-        if (viewerIsPdf) renderPdfPage(); else showImage(currentViewerFile);
-    }
-
-    @FXML
-    private void handleZoomOut() {
-        viewerZoom = Math.max(viewerZoom - 0.25, 0.25);
-        zoomLabel.setText((int)(viewerZoom * 100) + "%");
-        if (viewerIsPdf) renderPdfPage(); else showImage(currentViewerFile);
-    }
-
-    @FXML
-    private void handleRotate() {
-        rotateAngle = (rotateAngle + 90) % 360;
-        viewerImageView.setRotate(rotateAngle);
-    }
-
-    @FXML
-    private void handleViewerDownload() {
-        if (currentViewerFile == null) return;
-        FileChooser fc = new FileChooser();
-        fc.setTitle("Save File As");
-        fc.setInitialFileName(viewerTitleLabel.getText());
-        File saveTo = fc.showSaveDialog((Stage) welcomeLabel.getScene().getWindow());
-        if (saveTo != null) {
-            try {
-                java.nio.file.Files.copy(currentViewerFile.toPath(), saveTo.toPath(),
-                        java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-                statusLabel.setText("✅ Downloaded: " + viewerTitleLabel.getText());
-            } catch (Exception e) {
-                statusLabel.setText("Error: " + e.getMessage());
-            }
-        }
-    }
-
-    @FXML
-    private void handleBackFromViewer() {
-        if (currentPdfDoc != null) {
-            try { currentPdfDoc.close(); } catch (Exception ignored) {}
-            currentPdfDoc = null;
-        }
-        currentViewerFile = null;
-        viewerImageView.setImage(null);
-
-        fileViewerPanel.setVisible(false); fileViewerPanel.setManaged(false);
-        fileView.setVisible(true);         fileView.setManaged(true);
-        searchBar.setVisible(true);        searchBar.setManaged(true);
-        actionBar.setVisible(true);        actionBar.setManaged(true);
-        statusLabel.setText("Back to files.");
-    }
-
     private void switchToTab(TabState state) {
-        if (activeTab != null) {
-            activeTab.tabButton.setStyle(inactiveTabStyle());
-        }
+        if (activeTab != null) activeTab.tabButton.setStyle(inactiveTabStyle());
 
         activeTab = state;
         currentPath = state.currentPath;
@@ -387,10 +206,11 @@ public class DashboardController {
 
         tableContainer.getChildren().clear();
         tableContainer.getChildren().add(state.tableView);
-
         state.tabButton.setStyle(activeTabStyle());
+
         updatePathLabel();
         updateNavButtons();
+        updateGroupButtons();
         loadBookmarksBar();
         applyItemsToTable();
     }
@@ -463,6 +283,7 @@ public class DashboardController {
                         (bm.path.contains("/") ? bm.path.substring(0, bm.path.lastIndexOf("/")) : "");
                 saveActiveTabState();
                 updateNavButtons();
+                updateGroupButtons();
                 refreshFileList();
                 statusLabel.setText("⭐ Jumped to: " + bm.name);
             });
@@ -542,15 +363,13 @@ public class DashboardController {
         if (activeTab == null) return;
 
         java.util.Comparator<FileItem> comparator = switch (sortColumn) {
-            case "size" -> java.util.Comparator.comparingLong(
-                    item -> parseSizeToBytes(item.getSize()));
+            case "size" -> java.util.Comparator.comparingLong(item -> parseSizeToBytes(item.getSize()));
             case "date" -> java.util.Comparator.comparing(FileItem::getDate);
-            default -> java.util.Comparator.comparing(
-                    item -> item.getRawName().toLowerCase());
+            default -> java.util.Comparator.comparing(item -> item.getRawName().toLowerCase());
         };
 
         if (!sortAscending) comparator = comparator.reversed();
-        java.util.Comparator<FileItem> fc = comparator;
+        java.util.Comparator<FileItem> finalComparator = comparator;
         java.util.Comparator<FileItem> withFolders = (a, b) -> {
             if (a.isFolder() && !b.isFolder()) return -1;
             if (!a.isFolder() && b.isFolder()) return 1;
@@ -562,7 +381,18 @@ public class DashboardController {
         activeTab.tableView.setItems(FXCollections.observableArrayList(sorted));
     }
 
-    // ===================== VIDEO PLAYER =====================
+    private long parseSizeToBytes(String sizeText) {
+        try {
+            if (sizeText == null || sizeText.equals("—") || sizeText.isBlank()) return 0;
+            String s = sizeText.trim().toUpperCase();
+            if (s.endsWith("GB")) return (long) (Double.parseDouble(s.replace("GB", "").trim()) * 1024 * 1024 * 1024);
+            if (s.endsWith("MB")) return (long) (Double.parseDouble(s.replace("MB", "").trim()) * 1024 * 1024);
+            if (s.endsWith("KB")) return (long) (Double.parseDouble(s.replace("KB", "").trim()) * 1024);
+            if (s.endsWith("B")) return Long.parseLong(s.replace("B", "").trim());
+        } catch (Exception ignored) {
+        }
+        return 0;
+    }
 
     private void showVideoPlayer(File videoFile, String filename) {
         fileView.setVisible(false);
@@ -752,17 +582,22 @@ public class DashboardController {
         navFilesBtn.getStyleClass().remove("nav-btn-active");
         navRecycleBtn.getStyleClass().remove("nav-btn-active");
         navSharedBtn.getStyleClass().remove("nav-btn-active");
-        if (navGroupsBtn != null) navGroupsBtn.getStyleClass().remove("nav-btn-active");
+        navGroupsBtn.getStyleClass().remove("nav-btn-active");
 
-        if (inGroupsView) {
-            if (navGroupsBtn != null) navGroupsBtn.getStyleClass().add("nav-btn-active");
-        } else if (inRecycleBin) {
-            navRecycleBtn.getStyleClass().add("nav-btn-active");
-        } else if (inSharedView) {
-            navSharedBtn.getStyleClass().add("nav-btn-active");
-        } else {
-            navFilesBtn.getStyleClass().add("nav-btn-active");
-        }
+        if (inGroupsView) navGroupsBtn.getStyleClass().add("nav-btn-active");
+        else if (inRecycleBin) navRecycleBtn.getStyleClass().add("nav-btn-active");
+        else if (inSharedView) navSharedBtn.getStyleClass().add("nav-btn-active");
+        else navFilesBtn.getStyleClass().add("nav-btn-active");
+    }
+
+    private void updateGroupButtons() {
+        boolean atGroupsRoot = inGroupsView && inGroupRootView;
+        boolean insideGroup = inGroupsView && !inGroupRootView;
+
+        createGroupBtn.setVisible(atGroupsRoot);
+        createGroupBtn.setManaged(atGroupsRoot);
+        addGroupMemberBtn.setVisible(insideGroup);
+        addGroupMemberBtn.setManaged(insideGroup);
     }
 
     private void saveActiveTabState() {
@@ -791,13 +626,7 @@ public class DashboardController {
 
             for (NetworkManager.GroupInfo g : groups) {
                 String raw = g.groupId + "|" + g.groupName + "|" + g.owner;
-                allItems.add(new FileItem(
-                        "👥  " + g.groupName + "  (Owner: " + g.owner + ")",
-                        raw,
-                        true,
-                        "—",
-                        "—"
-                ));
+                allItems.add(new FileItem("👥  " + g.groupName + "  (Owner: " + g.owner + ")", raw, true, "—", "—"));
             }
 
             applyItemsToTable();
@@ -809,6 +638,7 @@ public class DashboardController {
 
         saveActiveTabState();
         loadBookmarksBar();
+        updateGroupButtons();
         applySorting();
     }
 
@@ -847,6 +677,7 @@ public class DashboardController {
 
         saveActiveTabState();
         loadBookmarksBar();
+        updateGroupButtons();
         applySorting();
     }
 
@@ -880,6 +711,7 @@ public class DashboardController {
 
         saveActiveTabState();
         loadBookmarksBar();
+        updateGroupButtons();
         applySorting();
     }
 
@@ -901,6 +733,7 @@ public class DashboardController {
 
         saveActiveTabState();
         loadBookmarksBar();
+        updateGroupButtons();
         applySorting();
     }
 
@@ -922,9 +755,9 @@ public class DashboardController {
 
         saveActiveTabState();
         loadBookmarksBar();
+        updateGroupButtons();
         applySorting();
     }
-
 
     @FXML
     private void handleSearch() {
@@ -939,7 +772,7 @@ public class DashboardController {
 
         List<FileItem> filtered = new ArrayList<>();
         for (FileItem item : allItems) {
-            if (item.getRawName().toLowerCase().contains(q)) {
+            if (item.getRawName().toLowerCase().contains(q) || item.getDisplayName().toLowerCase().contains(q)) {
                 filtered.add(item);
             }
         }
@@ -961,6 +794,7 @@ public class DashboardController {
 
         saveActiveTabState();
         updateNavButtons();
+        updateGroupButtons();
         showNoPreview("Select a file to preview");
         refreshFileList();
     }
@@ -977,6 +811,7 @@ public class DashboardController {
 
         saveActiveTabState();
         updateNavButtons();
+        updateGroupButtons();
         showNoPreview("Select a file to preview");
         refreshBin();
     }
@@ -993,6 +828,7 @@ public class DashboardController {
 
         saveActiveTabState();
         updateNavButtons();
+        updateGroupButtons();
         showNoPreview("Select a file to preview");
         refreshShared();
     }
@@ -1009,8 +845,70 @@ public class DashboardController {
 
         saveActiveTabState();
         updateNavButtons();
+        updateGroupButtons();
         showNoPreview("Select a group or file to preview");
         refreshGroups();
+    }
+
+    @FXML
+    private void handleCreateGroup() {
+        if (!inGroupsView || !inGroupRootView) {
+            statusLabel.setText("Open Groups to create a group.");
+            return;
+        }
+
+        TextInputDialog d = new TextInputDialog();
+        d.setTitle("Create Group");
+        d.setHeaderText("Create a new group");
+        d.setContentText("Group name:");
+
+        d.showAndWait().ifPresent(groupName -> {
+            if (groupName.trim().isEmpty()) {
+                statusLabel.setText("Group name cannot be empty.");
+                return;
+            }
+            try {
+                String result = network.createGroup(groupName.trim());
+                if (result.equals("CREATEGROUP_SUCCESS")) {
+                    statusLabel.setText("✅ Group created: " + groupName.trim());
+                    refreshGroups();
+                } else {
+                    statusLabel.setText(result.replace("ERROR ", ""));
+                }
+            } catch (Exception e) {
+                statusLabel.setText("Error: " + e.getMessage());
+            }
+        });
+    }
+
+    @FXML
+    private void handleAddGroupMember() {
+        if (!inGroupsView || inGroupRootView || activeGroupId == null) {
+            statusLabel.setText("Open a group first.");
+            return;
+        }
+
+        TextInputDialog d = new TextInputDialog();
+        d.setTitle("Add Group Member");
+        d.setHeaderText("Add member to " + activeGroupName);
+        d.setContentText("Username:");
+
+        d.showAndWait().ifPresent(member -> {
+            if (member.trim().isEmpty()) {
+                statusLabel.setText("Username cannot be empty.");
+                return;
+            }
+            try {
+                String result = network.addGroupMember(activeGroupId, member.trim());
+                if (result.equals("ADDGROUPMEMBER_SUCCESS")) {
+                    statusLabel.setText("✅ Added " + member.trim() + " to " + activeGroupName);
+                } else {
+                    statusLabel.setText(result.replace("ERROR ", ""));
+                }
+            } catch (Exception e) {
+                statusLabel.setText("Error: " + e.getMessage());
+            }
+        });
     }
 
     @FXML
@@ -1047,12 +945,10 @@ public class DashboardController {
         }
     }
 
-    // ===================== FILE CLICK =====================
-
     @FXML private void handleFileClick() {
-        if (activeTab==null) return;
+        if (activeTab == null) return;
         FileItem selected = activeTab.tableView.getSelectionModel().getSelectedItem();
-        if (selected==null) return;
+        if (selected == null) return;
         boolean dc = isDoubleClick();
 
         if (inGroupsView) {
@@ -1065,6 +961,7 @@ public class DashboardController {
                         currentGroupPath = "";
                         inGroupRootView = false;
                         saveActiveTabState();
+                        updateGroupButtons();
                         showNoPreview("Select a file to preview");
                         refreshGroupFiles();
                     }
@@ -1072,84 +969,62 @@ public class DashboardController {
                 return;
             }
 
+            if (selected.isFolder()) {
+                if (dc) {
+                    currentGroupPath = currentGroupPath.isEmpty() ? selected.getRawName() : currentGroupPath + "/" + selected.getRawName();
+                    saveActiveTabState();
+                    showNoPreview("Select a file to preview");
+                    refreshGroupFiles();
+                }
+            } else {
+                String fn = selected.getRawName();
+                String ext = getExtension(fn);
+                if (dc) {
+                    if (VIDEO_EXTENSIONS.contains(ext)) downloadAndPlayGroupVideo(fn);
+                    else openGroupFile(fn, ext);
+                } else {
+                    if (IMAGE_EXTENSIONS.contains(ext)) previewGroupImage(fn);
+                    else if (VIDEO_EXTENSIONS.contains(ext)) showNoPreview("🎬 Double click to play video.");
+                    else showNoPreview("Double click to open this file.");
+                }
+            }
+            return;
+        }
+
         if (selected.isFolder()) {
             if (dc) {
-                currentPath = currentPath.isEmpty() ? selected.getRawName() : currentPath+"/"+selected.getRawName();
-                if (activeTab!=null) activeTab.currentPath = currentPath;
-                showNoPreview("Select a file to preview"); refreshFileList();
+                currentPath = currentPath.isEmpty() ? selected.getRawName() : currentPath + "/" + selected.getRawName();
+                if (activeTab != null) activeTab.currentPath = currentPath;
+                showNoPreview("Select a file to preview");
+                refreshFileList();
             }
         } else {
             if (inSharedView) {
-                String[] p=selected.getRawName().split("\\|");
-                String fp=p[1], fn=fp.contains("/")?fp.substring(fp.lastIndexOf("/")+1):fp, ext=getExtension(fn);
-                if (dc) { if (VIDEO_EXTENSIONS.contains(ext)) downloadAndPlaySharedVideo(selected); else openSharedWithSystemApp(selected); }
-                else { if (IMAGE_EXTENSIONS.contains(ext)) previewSharedImage(selected); else if (VIDEO_EXTENSIONS.contains(ext)) showNoPreview("🎬 Double click to play video."); else showNoPreview("Double click to open this file."); }
+                String[] p = selected.getRawName().split("\\|");
+                String fp = p[1];
+                String fn = fp.contains("/") ? fp.substring(fp.lastIndexOf("/") + 1) : fp;
+                String ext = getExtension(fn);
+                if (dc) {
+                    if (VIDEO_EXTENSIONS.contains(ext)) downloadAndPlaySharedVideo(selected);
+                    else openSharedWithSystemApp(selected);
+                } else {
+                    if (IMAGE_EXTENSIONS.contains(ext)) previewSharedImage(selected);
+                    else if (VIDEO_EXTENSIONS.contains(ext)) showNoPreview("🎬 Double click to play video.");
+                    else showNoPreview("Double click to open this file.");
+                }
             } else {
-                String fn=selected.getRawName(), ext=getExtension(fn);
-                if (dc) { if (VIDEO_EXTENSIONS.contains(ext)) downloadAndPlayVideo(fn); else openWithSystemApp(fn, ext); }
-                else { if (IMAGE_EXTENSIONS.contains(ext)) previewImage(fn); else if (VIDEO_EXTENSIONS.contains(ext)) showNoPreview("🎬 Double click to play video."); else showNoPreview("Double click to open this file."); }
+                String fn = selected.getRawName();
+                String ext = getExtension(fn);
+                if (dc) {
+                    if (VIDEO_EXTENSIONS.contains(ext)) downloadAndPlayVideo(fn);
+                    else openWithSystemApp(fn, ext);
+                } else {
+                    if (IMAGE_EXTENSIONS.contains(ext)) previewImage(fn);
+                    else if (VIDEO_EXTENSIONS.contains(ext)) showNoPreview("🎬 Double click to play video.");
+                    else showNoPreview("Double click to open this file.");
+                }
             }
         }
-    }
-
-    private void downloadAndOpenInViewer(String filename, boolean isPdf) {
-        String rel = currentPath.isEmpty() ? filename : currentPath + "/" + filename;
-        File tmp = new File(new File(System.getProperty("java.io.tmpdir"), "filevault"), filename);
-        tmp.getParentFile().mkdirs();
-        statusLabel.setText("Loading " + filename + "...");
-        uploadProgressBar.setProgress(0); uploadProgressBar.setVisible(true);
-        progressLabel.setVisible(true); progressLabel.setText("Loading... 0%");
-
-        Thread t = new Thread(() -> {
-            try {
-                String r = network.downloadFile(rel, tmp,
-                        p -> javafx.application.Platform.runLater(() -> {
-                            uploadProgressBar.setProgress(p);
-                            progressLabel.setText("Loading... " + (int)(p * 100) + "%");
-                        }));
-                javafx.application.Platform.runLater(() -> {
-                    uploadProgressBar.setVisible(false); progressLabel.setVisible(false);
-                    if (r.equals("DOWNLOAD_SUCCESS")) showFileViewer(tmp, filename, isPdf);
-                    else statusLabel.setText("Failed: " + r);
-                });
-            } catch (Exception e) {
-                javafx.application.Platform.runLater(() -> {
-                    uploadProgressBar.setVisible(false); progressLabel.setVisible(false);
-                    statusLabel.setText("Error: " + e.getMessage());
-                });
-            }
-        }); t.setDaemon(true); t.start();
-    }
-
-    private void downloadAndOpenSharedInViewer(FileItem selected, boolean isPdf) {
-        String[] p = selected.getRawName().split("\\|");
-        String owner = p[0], fp = p[1];
-        String fn = fp.contains("/") ? fp.substring(fp.lastIndexOf("/") + 1) : fp;
-        File tmp = new File(new File(System.getProperty("java.io.tmpdir"), "filevault"), fn);
-        tmp.getParentFile().mkdirs();
-        statusLabel.setText("Loading " + fn + "...");
-        uploadProgressBar.setProgress(0); uploadProgressBar.setVisible(true);
-        progressLabel.setVisible(true); progressLabel.setText("Loading... 0%");
-
-        Thread t = new Thread(() -> {
-            try {
-                String r = network.downloadSharedFile(owner, fp, tmp,
-                        prog -> javafx.application.Platform.runLater(() -> {
-                            uploadProgressBar.setProgress(prog);
-                            progressLabel.setText("Loading... " + (int)(prog * 100) + "%");
-                        }));
-                javafx.application.Platform.runLater(() -> {
-                    uploadProgressBar.setVisible(false); progressLabel.setVisible(false);
-                    if (r.equals("DOWNLOAD_SUCCESS")) showFileViewer(tmp, fn, isPdf);
-                    else statusLabel.setText("Failed: " + r);
-                });
-            } catch (Exception e) {
-                javafx.application.Platform.runLater(() -> {
-                    uploadProgressBar.setVisible(false); progressLabel.setVisible(false);
-                    statusLabel.setText("Error: " + e.getMessage());
-                });
-            }
-        }); t.setDaemon(true); t.start();
     }
 
     private boolean isDoubleClick() {
@@ -1430,6 +1305,7 @@ public class DashboardController {
                 activeGroupId = null;
                 activeGroupName = null;
                 saveActiveTabState();
+                updateGroupButtons();
                 refreshGroups();
                 showNoPreview("Select a group to open");
                 return;
@@ -1438,6 +1314,7 @@ public class DashboardController {
             int i = currentGroupPath.lastIndexOf("/");
             currentGroupPath = i == -1 ? "" : currentGroupPath.substring(0, i);
             saveActiveTabState();
+            updateGroupButtons();
             showNoPreview("Select a file to preview");
             refreshGroupFiles();
             return;
@@ -1458,7 +1335,7 @@ public class DashboardController {
     @FXML
     private void handleCreateFolder() {
         if (inGroupsView) {
-            statusLabel.setText("Creating folders inside groups is not added yet.");
+            statusLabel.setText("Creating folders inside groups is not added in the server yet.");
             return;
         }
 
@@ -1490,7 +1367,7 @@ public class DashboardController {
     @FXML
     private void handleRename() {
         if (inGroupsView) {
-            statusLabel.setText("Rename inside groups is not added yet.");
+            statusLabel.setText("Rename inside groups is not added in the server yet.");
             return;
         }
 
@@ -1532,16 +1409,14 @@ public class DashboardController {
     @FXML
     private void handleMoveFile() {
         if (inGroupsView) {
-            statusLabel.setText("Move inside groups is not added yet.");
+            statusLabel.setText("Move inside groups is not added in the server yet.");
             return;
         }
 
         if (activeTab == null) return;
         List<FileItem> sel = new ArrayList<>(activeTab.tableView.getSelectionModel().getSelectedItems());
         List<String> files = new ArrayList<>();
-        for (FileItem i : sel) {
-            if (!i.isFolder()) files.add(i.getRawName());
-        }
+        for (FileItem i : sel) if (!i.isFolder()) files.add(i.getRawName());
 
         if (files.isEmpty()) {
             statusLabel.setText("Please select one or more files to move.");
@@ -1615,14 +1490,7 @@ public class DashboardController {
 
     @FXML
     private void handleRefresh() {
-        if (inRecycleBin) refreshBin();
-        else if (inSharedView) refreshShared();
-        else if (inGroupsView) {
-            if (inGroupRootView) refreshGroups();
-            else refreshGroupFiles();
-        } else {
-            refreshFileList();
-        }
+        refreshCurrentView();
         statusLabel.setText("✅ Refreshed.");
     }
 
@@ -1788,12 +1656,12 @@ public class DashboardController {
 
         if (inGroupsView) {
             if (inGroupRootView) {
-                statusLabel.setText("Group deletion is not added yet.");
+                statusLabel.setText("Group deletion is not added in the server yet.");
                 return;
             }
 
             if (sel.isFolder()) {
-                statusLabel.setText("Deleting folders inside groups is not added yet.");
+                statusLabel.setText("Deleting folders inside groups is not added in the server yet.");
                 return;
             }
 

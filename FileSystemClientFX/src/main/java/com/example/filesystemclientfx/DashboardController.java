@@ -9,8 +9,6 @@ import javafx.scene.control.*;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
-import javafx.scene.shape.Circle;
-import javafx.embed.swing.SwingFXUtils;
 import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
 import javafx.scene.media.MediaView;
@@ -19,21 +17,15 @@ import javafx.stage.Stage;
 import javafx.util.Duration;
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
-import javax.imageio.ImageIO;
-import java.awt.image.BufferedImage;
 
 public class DashboardController {
 
     @FXML private Label welcomeLabel;
     @FXML private Label statusLabel;
     @FXML private ImageView imagePreview;
-    @FXML private ImageView profileImageView;
-    @FXML private Circle profileBorderCircle;
-    @FXML private Button changeProfilePicBtn;
     @FXML private Label previewLabel;
     @FXML private Label pathLabel;
     @FXML private ProgressBar uploadProgressBar;
@@ -54,6 +46,10 @@ public class DashboardController {
     @FXML private Button addGroupMemberBtn;
     @FXML private javafx.scene.layout.HBox tabButtonsBox;
     @FXML private javafx.scene.layout.VBox tableContainer;
+
+    @FXML private Label descriptionLabel;
+    @FXML private ListView<String> commentsList;
+    @FXML private TextField commentField;
 
     // ── Video player ──────────────────────────────────────────────────────────
     @FXML private javafx.scene.layout.VBox videoView;
@@ -100,6 +96,7 @@ public class DashboardController {
     private String  currentGroupId   = null;
     private String  currentGroupName = null;
     private String  currentGroupPath = "";
+    private String  currentDiscussionFileName = null;
     private List<FileItem> allItems  = new ArrayList<>();
 
     private List<TabState> tabs = new ArrayList<>();
@@ -147,8 +144,6 @@ public class DashboardController {
                 if (zoomLabel != null) zoomLabel.setText((int) n.doubleValue() + "%");
             });
         }
-
-        initializeProfileAvatar();
     }
 
     public void setUsername(String username) {
@@ -165,123 +160,6 @@ public class DashboardController {
         openNewTab("");
         loadBookmarksBar();
         updateActionButtons();
-        loadProfilePicture();
-    }
-
-
-    // =========================================================================
-    //  PROFILE PICTURE
-    // =========================================================================
-
-    private void initializeProfileAvatar() {
-        if (profileImageView != null) {
-            Circle clip = new Circle(32, 32, 32);
-            profileImageView.setClip(clip);
-            profileImageView.setPreserveRatio(false);
-            profileImageView.setFitWidth(64);
-            profileImageView.setFitHeight(64);
-        }
-        applyProfileBorderStyle();
-    }
-
-    private void applyProfileBorderStyle() {
-        if (profileBorderCircle == null) return;
-        profileBorderCircle.setStyle("-fx-fill: transparent; -fx-stroke: #00d4ff; -fx-stroke-width: 3;");
-    }
-
-    private File convertImageToPng(File source) throws IOException {
-        BufferedImage original = ImageIO.read(source);
-        if (original == null) {
-            throw new IOException("Unsupported image format.");
-        }
-
-        File temp = File.createTempFile("profile_upload_", ".png");
-        temp.deleteOnExit();
-        ImageIO.write(original, "png", temp);
-        return temp;
-    }
-
-    private void loadProfilePicture() {
-        if (network == null) return;
-
-        Thread t = new Thread(() -> {
-            try {
-                File temp = File.createTempFile("profile_view_", ".png");
-                temp.deleteOnExit();
-
-                String result = network.downloadProfilePicture(temp);
-
-                javafx.application.Platform.runLater(() -> {
-                    applyProfileBorderStyle();
-                    if ("DOWNLOAD_SUCCESS".equals(result)) {
-                        try {
-                            profileImageView.setImage(new Image(new FileInputStream(temp)));
-                        } catch (Exception e) {
-                            profileImageView.setImage(null);
-                        }
-                    } else {
-                        profileImageView.setImage(null);
-                    }
-                });
-            } catch (Exception e) {
-                javafx.application.Platform.runLater(() -> {
-                    applyProfileBorderStyle();
-                    profileImageView.setImage(null);
-                });
-            }
-        });
-        t.setDaemon(true);
-        t.start();
-    }
-
-    @FXML
-    private void handleChangeProfilePicture() {
-        if (network == null) {
-            statusLabel.setText("Connection not ready.");
-            return;
-        }
-
-        FileChooser chooser = new FileChooser();
-        chooser.setTitle("Select Profile Picture");
-        chooser.getExtensionFilters().add(
-                new FileChooser.ExtensionFilter("Images", "*.png", "*.jpg", "*.jpeg", "*.bmp", "*.gif", "*.webp")
-        );
-
-        File selected = chooser.showOpenDialog(welcomeLabel.getScene().getWindow());
-        if (selected == null) return;
-
-        showProgress("Uploading profile...");
-        Thread t = new Thread(() -> {
-            try {
-                File pngFile = convertImageToPng(selected);
-                String uploadResult = network.uploadProfilePicture(
-                        pngFile,
-                        p -> javafx.application.Platform.runLater(() -> updateProgress(p, "Uploading profile..."))
-                );
-
-                javafx.application.Platform.runLater(() -> {
-                    hideProgress();
-                    if ("UPLOAD_PROFILE_SUCCESS".equals(uploadResult)) {
-                        try {
-                            applyProfileBorderStyle();
-                            profileImageView.setImage(new Image(new FileInputStream(pngFile)));
-                            statusLabel.setText("✅ Profile picture updated.");
-                        } catch (Exception ex) {
-                            statusLabel.setText("Profile updated, but preview failed: " + ex.getMessage());
-                        }
-                    } else {
-                        statusLabel.setText("Upload failed: " + uploadResult);
-                    }
-                });
-            } catch (Exception e) {
-                javafx.application.Platform.runLater(() -> {
-                    hideProgress();
-                    statusLabel.setText("Error: " + e.getMessage());
-                });
-            }
-        });
-        t.setDaemon(true);
-        t.start();
     }
 
     // =========================================================================
@@ -895,6 +773,7 @@ public class DashboardController {
         inRecycleBin=false; inSharedView=false; inGroupView=false;
         currentPath=""; currentGroupId=null; currentGroupName=null; currentGroupPath="";
         syncActiveTabState(); updateNavigationStyles(); updateActionButtons();
+        clearDiscussionPanel();
         showNoPreview("Select a file to preview"); refreshFileList();
     }
 
@@ -902,6 +781,7 @@ public class DashboardController {
         inRecycleBin=true; inSharedView=false; inGroupView=false;
         currentGroupId=null; currentGroupName=null; currentGroupPath="";
         syncActiveTabState(); updateNavigationStyles(); updateActionButtons();
+        clearDiscussionPanel();
         pathLabel.setText("/ Recycle Bin"); showNoPreview("Select a file to preview"); refreshBin();
     }
 
@@ -909,12 +789,14 @@ public class DashboardController {
         inSharedView=true; inRecycleBin=false; inGroupView=false;
         currentGroupId=null; currentGroupName=null; currentGroupPath="";
         syncActiveTabState(); updateNavigationStyles(); updateActionButtons();
+        clearDiscussionPanel();
         pathLabel.setText("/ Shared with Me"); showNoPreview("Select a file to preview"); refreshShared();
     }
 
     @FXML private void handleNavGroups() {
         inGroupView=true; inSharedView=false; inRecycleBin=false;
         currentGroupId=null; currentGroupName=null; currentGroupPath="";
+        clearDiscussionPanel();
         syncActiveTabState(); updateNavigationStyles(); updateActionButtons(); refreshGroups();
     }
 
@@ -990,10 +872,12 @@ public class DashboardController {
             // Inside a group
             if (selected.isFolder()) {
                 if (dc) {
+                    clearDiscussionPanel();
                     currentGroupPath = currentGroupPath.isEmpty() ? selected.getRawName() : currentGroupPath + "/" + selected.getRawName();
                     syncActiveTabState(); showNoPreview("Select a file to preview"); refreshGroupFiles();
                 }
             } else {
+                loadGroupFileDiscussion(selected.getRawName());
                 String fn  = selected.getRawName();
                 String ext = getExtension(fn);
                 if (dc) {
@@ -1410,6 +1294,102 @@ public class DashboardController {
 
     private void showNoPreview(String msg) { imagePreview.setVisible(false); imagePreview.setImage(null); previewLabel.setText(msg); }
     private String getExtension(String f)  { return f.contains(".") ? f.substring(f.lastIndexOf(".") + 1).toLowerCase() : ""; }
+
+
+    // =========================================================================
+    //  GROUP FILE DISCUSSION
+    // =========================================================================
+
+    private void clearDiscussionPanel() {
+        if (descriptionLabel != null) descriptionLabel.setText("");
+        if (commentsList != null) commentsList.getItems().clear();
+        if (commentField != null) commentField.clear();
+        currentDiscussionFileName = null;
+    }
+
+    private void loadGroupFileDiscussion(String fileName) {
+        if (descriptionLabel == null || commentsList == null || currentGroupId == null || fileName == null) return;
+
+        try {
+            String response = network.getGroupFileDiscussion(currentGroupId, fileName);
+            descriptionLabel.setText("");
+            commentsList.getItems().clear();
+
+            if (response.equals("EMPTY")) {
+                currentDiscussionFileName = fileName;
+                return;
+            }
+
+            String[] lines = response.split(";;");
+            for (String line : lines) {
+                if (line.startsWith("description:")) {
+                    descriptionLabel.setText(line.substring("description:".length()));
+                } else if (line.startsWith("comment:")) {
+                    commentsList.getItems().add(line.substring("comment:".length()));
+                }
+            }
+
+            currentDiscussionFileName = fileName;
+        } catch (Exception e) {
+            statusLabel.setText("Discussion error: " + e.getMessage());
+        }
+    }
+
+    @FXML
+    private void handleAddComment() {
+        if (currentGroupId == null || currentDiscussionFileName == null) {
+            statusLabel.setText("Open a group file first.");
+            return;
+        }
+        if (commentField == null) return;
+
+        String text = commentField.getText().trim();
+        if (text.isEmpty()) {
+            statusLabel.setText("Comment cannot be empty.");
+            return;
+        }
+
+        try {
+            String result = network.addComment(currentGroupId, currentDiscussionFileName, text);
+            if (result.equals("COMMENT_SUCCESS")) {
+                commentField.clear();
+                loadGroupFileDiscussion(currentDiscussionFileName);
+                statusLabel.setText("✅ Comment added.");
+            } else {
+                statusLabel.setText("Failed: " + result);
+            }
+        } catch (Exception e) {
+            statusLabel.setText("Error: " + e.getMessage());
+        }
+    }
+
+    @FXML
+    private void handleSetDescription() {
+        if (currentGroupId == null || currentDiscussionFileName == null) {
+            statusLabel.setText("Open a group file first.");
+            return;
+        }
+        if (descriptionLabel == null) return;
+
+        TextInputDialog dialog = new TextInputDialog(descriptionLabel.getText());
+        dialog.setTitle("File Description");
+        dialog.setHeaderText("Set description for " + currentDiscussionFileName);
+        dialog.setContentText("Description:");
+
+        dialog.showAndWait().ifPresent(text -> {
+            try {
+                String result = network.setGroupFileDescription(currentGroupId, currentDiscussionFileName, text.trim());
+                if (result.equals("SETFILEDESCRIPTION_SUCCESS")) {
+                    loadGroupFileDiscussion(currentDiscussionFileName);
+                    statusLabel.setText("✅ Description saved.");
+                } else {
+                    statusLabel.setText("Failed: " + result);
+                }
+            } catch (Exception e) {
+                statusLabel.setText("Error: " + e.getMessage());
+            }
+        });
+    }
 
     // =========================================================================
     //  FileItem

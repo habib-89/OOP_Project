@@ -465,62 +465,19 @@ public class NetworkManager {
     }
 
 
-    // ===================== PROFILE PICTURE =====================
-
-    public String uploadProfilePicture(File file, Consumer<Double> progressCallback) throws Exception {
-        out.writeUTF("UPLOAD_PROFILE " + file.length());
-
-        byte[] buffer = new byte[4096];
-        long totalBytes = file.length();
-        long uploadedBytes = 0;
-
-        try (FileInputStream fis = new FileInputStream(file)) {
-            int bytesRead;
-            while ((bytesRead = fis.read(buffer)) != -1) {
-                out.write(buffer, 0, bytesRead);
-                uploadedBytes += bytesRead;
-                if (progressCallback != null) {
-                    double progress = totalBytes == 0 ? 1.0 : (double) uploadedBytes / totalBytes;
-                    progressCallback.accept(progress);
-                }
-            }
-        }
-
-        out.flush();
+    public String setGroupFileDescription(String groupId, String fileName, String description) throws Exception {
+        out.writeUTF("SETFILEDESCRIPTION " + groupId + "|" + fileName + "|" + description);
         return in.readUTF();
     }
 
-    public String downloadProfilePicture(File saveTo) throws Exception {
-        out.writeUTF("DOWNLOAD_PROFILE");
-        String response = in.readUTF();
-
-        if (response.startsWith("ERROR")) return response;
-
-        long fileSize = Long.parseLong(response.split(" ")[1]);
-        byte[] buffer = new byte[4096];
-        long remaining = fileSize;
-
-        try (FileOutputStream fos = new FileOutputStream(saveTo)) {
-            while (remaining > 0) {
-                int read = in.read(buffer, 0, (int) Math.min(buffer.length, remaining));
-                if (read == -1) break;
-                fos.write(buffer, 0, read);
-                remaining -= read;
-            }
-        }
-
-        return "DOWNLOAD_SUCCESS";
-    }
-
-    public String uploadProfileStyle(String style) throws Exception {
-        out.writeUTF("UPLOAD_PROFILE_STYLE " + style);
+    public String addComment(String groupId, String fileName, String comment) throws Exception {
+        out.writeUTF("ADDCOMMENT " + groupId + "|" + fileName + "|" + comment);
         return in.readUTF();
     }
 
-    public String downloadProfileStyle() throws Exception {
-        out.writeUTF("DOWNLOAD_PROFILE_STYLE");
+    public String getGroupFileDiscussion(String groupId, String fileName) throws Exception {
+        out.writeUTF("GETFILEDISCUSSION " + groupId + "|" + fileName);
         return in.readUTF();
     }
-
 
 }

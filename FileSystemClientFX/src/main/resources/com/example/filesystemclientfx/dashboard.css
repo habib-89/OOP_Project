@@ -490,3 +490,62 @@
 .profile-border-neon {
     -fx-stroke: #39ff14;
 }
+
+
+/* ===== GROUP DISCUSSION ===== */
+.discussion-box {
+    -fx-background-color: rgba(0, 212, 255, 0.04);
+    -fx-padding: 12;
+    -fx-background-radius: 10;
+    -fx-border-color: rgba(0, 212, 255, 0.18);
+    -fx-border-width: 1;
+    -fx-border-radius: 10;
+}
+
+.list-view {
+    -fx-background-color: rgba(0, 212, 255, 0.04);
+    -fx-border-color: rgba(0, 212, 255, 0.18);
+    -fx-background-radius: 8;
+    -fx-border-radius: 8;
+}
+
+.list-view .viewport {
+    -fx-background-color: transparent;
+}
+
+.list-view .content {
+    -fx-background-color: transparent;
+}
+
+.list-cell {
+    -fx-background-color: transparent;
+    -fx-text-fill: rgba(255,255,255,0.85);
+    -fx-font-family: "Courier New";
+    -fx-font-size: 11px;
+}
+
+.list-cell:filled:hover {
+    -fx-background-color: rgba(0, 212, 255, 0.07);
+}
+
+.list-cell:filled:selected,
+.list-cell:filled:selected:hover {
+    -fx-background-color: rgba(0, 212, 255, 0.15);
+    -fx-text-fill: #00d4ff;
+}
+
+.text-field {
+    -fx-background-color: rgba(0, 212, 255, 0.05);
+    -fx-text-fill: #ffffff;
+    -fx-prompt-text-fill: rgba(0, 212, 255, 0.35);
+    -fx-background-radius: 8;
+    -fx-border-color: rgba(0, 212, 255, 0.22);
+    -fx-border-width: 1;
+    -fx-border-radius: 8;
+    -fx-font-family: "Courier New";
+}
+
+.text-field:focused {
+    -fx-border-color: #00d4ff;
+    -fx-effect: dropshadow(gaussian, rgba(0, 212, 255, 0.35), 8, 0, 0, 0);
+}

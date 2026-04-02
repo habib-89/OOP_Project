@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <?import javafx.scene.layout.*?>
 <?import javafx.scene.control.*?>
+<?import javafx.scene.control.ListView?>
 <?import javafx.scene.image.*?>
 <?import javafx.scene.media.*?>
 <?import javafx.scene.web.*?>
@@ -24,7 +25,7 @@
                     <Label text="👤" styleClass="user-avatar-fallback" mouseTransparent="true"/>
                 </StackPane>
                 <Label fx:id="welcomeLabel" text="Welcome!" styleClass="user-name"/>
-                <Button fx:id="changeProfilePicBtn" text="Change Picture" onAction="#handleChangeProfilePicture"
+                <Button fx:id="changeProfilePicBtn" text="Change Picture"
                         styleClass="action-btn-small"/>
             </VBox>
             <VBox styleClass="nav-section" spacing="4">
@@ -152,6 +153,25 @@
                                preserveRatio="true" visible="false"/>
                     <Label fx:id="previewLabel" text="Select a file to preview"
                            styleClass="preview-hint" wrapText="true"/>
+
+                    <Separator style="-fx-background-color: rgba(0,212,255,0.15);" />
+                    <VBox spacing="8.0" styleClass="discussion-box">
+                        <HBox alignment="CENTER_LEFT" spacing="8.0">
+                            <Label text="DESCRIPTION" styleClass="preview-title" />
+                            <Pane HBox.hgrow="ALWAYS" />
+                            <Button text="Edit" onAction="#handleSetDescription" styleClass="action-btn-small" />
+                        </HBox>
+                        <Label fx:id="descriptionLabel" text="" styleClass="preview-hint" wrapText="true" />
+
+                        <Label text="COMMENTS" styleClass="preview-title" />
+                        <ListView fx:id="commentsList" prefHeight="170.0" />
+
+                        <HBox spacing="8.0">
+                            <TextField fx:id="commentField" promptText="Write a comment..." HBox.hgrow="ALWAYS" />
+                            <Button text="Send" onAction="#handleAddComment" styleClass="action-btn-primary" />
+                        </HBox>
+                    </VBox>
+
                 </VBox>
 
             </HBox>

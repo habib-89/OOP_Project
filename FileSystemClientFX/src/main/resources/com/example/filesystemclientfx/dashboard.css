@@ -468,3 +468,25 @@
 .root-light .status-label {
     -fx-text-fill: #64748b;
 }
+
+.user-avatar-fallback {
+    -fx-text-fill: rgba(255,255,255,0.22);
+    -fx-font-size: 28px;
+    -fx-font-family: "Courier New";
+}
+
+.profile-border-cyan {
+    -fx-stroke: #00d4ff;
+}
+
+.profile-border-pink {
+    -fx-stroke: #ff4fd8;
+}
+
+.profile-border-gold {
+    -fx-stroke: #ffd166;
+}
+
+.profile-border-neon {
+    -fx-stroke: #39ff14;
+}

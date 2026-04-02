@@ -11,7 +11,7 @@ public class NetworkManager {
     private Socket socket;
     private DataOutputStream out;
     private DataInputStream in;
-    private String serverHost = "localhost";
+    private String serverHost = "localhost"; // default
 
     public void setServerHost(String host) {
         this.serverHost = host.trim();
@@ -22,19 +22,10 @@ public class NetworkManager {
     }
 
     public void connect() throws Exception {
+        if (socket != null && socket.isConnected() && !socket.isClosed()) return;
         socket = new Socket(serverHost, 5001);
         out = new DataOutputStream(socket.getOutputStream());
         in = new DataInputStream(socket.getInputStream());
-    }
-
-    public boolean isConnected() {
-        return socket != null && socket.isConnected() && !socket.isClosed();
-    }
-
-    public void disconnect() {
-        try {
-            if (socket != null) socket.close();
-        } catch (IOException ignored) {}
     }
 
     public String sendMessage(String message) throws Exception {
@@ -44,7 +35,38 @@ public class NetworkManager {
 
     public ListResult listDir(String path) throws Exception {
         out.writeUTF("LISTDIR " + path);
-        return parseListResult(in.readUTF());
+        String response = in.readUTF();
+
+        List<String> folders = new ArrayList<>();
+        List<String> files = new ArrayList<>();
+        List<String> sizes = new ArrayList<>();
+        List<String> dates = new ArrayList<>();
+
+        if (response.equals("EMPTY"))
+            return new ListResult(folders, files, sizes, dates);
+
+        String[] items = response.split(",");
+        for (String item : items) {
+            String[] parts = item.split(":");
+            if (parts.length >= 4) {
+                boolean isDir = parts[0].equals("DIR");
+                String name = parts[1];
+                String size = parts[2];
+                String date = parts[3];
+
+                if (isDir) folders.add(name);
+                else files.add(name);
+                sizes.add(size);
+                dates.add(date);
+            } else if (parts.length == 1) {
+                if (item.startsWith("DIR:")) folders.add(item.substring(4));
+                else if (item.startsWith("FILE:")) files.add(item.substring(5));
+                sizes.add("—");
+                dates.add("—");
+            }
+        }
+
+        return new ListResult(folders, files, sizes, dates);
     }
 
     public List<String> listBin() throws Exception {
@@ -56,7 +78,9 @@ public class NetworkManager {
 
         String[] items = response.split(",");
         for (String item : items) {
-            if (!item.trim().isEmpty()) files.add(item.trim());
+            if (!item.trim().isEmpty()) {
+                files.add(item.trim());
+            }
         }
         return files;
     }
@@ -93,19 +117,58 @@ public class NetworkManager {
 
     public String uploadFile(File file, String currentPath,
                              Consumer<Double> progressCallback) throws Exception {
-        String remotePath = currentPath.isEmpty()
-                ? file.getName()
-                : currentPath + "/" + file.getName();
+        String remotePath = currentPath.isEmpty() ?
+                file.getName() : currentPath + "/" + file.getName();
         out.writeUTF("UPLOAD " + remotePath + " " + file.length());
-        return sendFileBytes(file, progressCallback);
+
+        byte[] buffer = new byte[4096];
+        FileInputStream fis = new FileInputStream(file);
+        long totalBytes = file.length();
+        long uploadedBytes = 0;
+        int bytesRead;
+
+        while ((bytesRead = fis.read(buffer)) != -1) {
+            out.write(buffer, 0, bytesRead);
+            uploadedBytes += bytesRead;
+            if (progressCallback != null) {
+                double progress = (double) uploadedBytes / totalBytes;
+                progressCallback.accept(progress);
+            }
+        }
+        fis.close();
+        out.flush();
+        return in.readUTF();
     }
 
     public String downloadFile(String relativePath, File saveTo,
                                Consumer<Double> progressCallback) throws Exception {
         out.writeUTF("DOWNLOAD " + relativePath);
-        return receiveFileTo(saveTo, progressCallback);
+        String response = in.readUTF();
+
+        if (response.startsWith("ERROR")) return response;
+
+        long fileSize = Long.parseLong(response.split(" ")[1]);
+        byte[] buffer = new byte[4096];
+        long remaining = fileSize;
+        long downloaded = 0;
+        FileOutputStream fos = new FileOutputStream(saveTo);
+
+        while (remaining > 0) {
+            int read = in.read(buffer, 0,
+                    (int) Math.min(buffer.length, remaining));
+            fos.write(buffer, 0, read);
+            remaining -= read;
+            downloaded += read;
+            if (progressCallback != null) {
+                double progress = (double) downloaded / fileSize;
+                progressCallback.accept(progress);
+            }
+        }
+        fos.close();
+        return "DOWNLOAD_SUCCESS";
     }
 
+    // Overload for backward compatibility (no progress callback)
     public String downloadFile(String relativePath, File saveTo) throws Exception {
         return downloadFile(relativePath, saveTo, null);
     }
@@ -124,8 +187,10 @@ public class NetworkManager {
 
         String[] items = response.split(",");
         for (String item : items) {
-            String[] parts = item.split(":", 2);
-            if (parts.length >= 2) users.add(new UserInfo(parts[0].trim(), parts[1].trim()));
+            String[] parts = item.split(":");
+            if (parts.length >= 2) {
+                users.add(new UserInfo(parts[0], parts[1]));
+            }
         }
         return users;
     }
@@ -137,196 +202,29 @@ public class NetworkManager {
 
     public ListResult viewUserFiles(String username) throws Exception {
         out.writeUTF("VIEWUSERFILES " + username);
-        return parseListResult(in.readUTF());
-    }
-
-    public String shareFile(String targetUser, String filePath) throws Exception {
-        out.writeUTF("SHARE " + targetUser + "|" + filePath);
-        return in.readUTF();
-    }
-
-    public String unshareFile(String targetUser, String filePath) throws Exception {
-        out.writeUTF("UNSHARE " + targetUser + "|" + filePath);
-        return in.readUTF();
-    }
-
-    public List<SharedFileInfo> listSharedWithMe() throws Exception {
-        out.writeUTF("LISTSHARED");
         String response = in.readUTF();
 
-        List<SharedFileInfo> files = new ArrayList<>();
-        if (response.equals("EMPTY")) return files;
-
-        String[] items = response.split(",");
-        for (String item : items) {
-            String[] parts = item.split("\\|", 3);
-            if (parts.length >= 3) {
-                files.add(new SharedFileInfo(parts[0].trim(), parts[1].trim(), parts[2].trim()));
-            }
-        }
-        return files;
-    }
-
-    public String downloadSharedFile(String ownerUsername, String filePath, File saveTo) throws Exception {
-        return downloadSharedFile(ownerUsername, filePath, saveTo, null);
-    }
-
-    public String downloadSharedFile(String ownerUsername, String filePath, File saveTo,
-                                     Consumer<Double> progressCallback) throws Exception {
-        out.writeUTF("DOWNLOADSHARED " + ownerUsername + "|" + filePath);
-        return receiveFileTo(saveTo, progressCallback);
-    }
-
-    // ===== GROUPS =====
-
-    public String createGroup(String groupName) throws Exception {
-        out.writeUTF("CREATEGROUP " + groupName);
-        return in.readUTF();
-    }
-
-    public String addGroupMember(String groupId, String username) throws Exception {
-        out.writeUTF("ADDGROUPMEMBER " + groupId + "|" + username);
-        return in.readUTF();
-    }
-
-    public List<GroupInfo> listGroups() throws Exception {
-        out.writeUTF("LISTGROUPS");
-        String response = in.readUTF();
-
-        List<GroupInfo> groups = new ArrayList<>();
-        if (response.equals("EMPTY")) return groups;
-
-        String[] items = response.split(",");
-        for (String item : items) {
-            String[] parts = item.split("\\|", 3);
-            if (parts.length >= 3) {
-                groups.add(new GroupInfo(parts[0].trim(), parts[1].trim(), parts[2].trim()));
-            }
-        }
-        return groups;
-    }
-
-    public ListResult listGroupFiles(String groupId, String relativePath) throws Exception {
-        String payload = relativePath == null || relativePath.isBlank()
-                ? groupId
-                : groupId + "|" + relativePath;
-        out.writeUTF("LISTGROUPFILES " + payload);
-        return parseListResult(in.readUTF());
-    }
-
-    public String uploadGroupFile(File file, String groupId, String currentGroupPath,
-                                  Consumer<Double> progressCallback) throws Exception {
-        String remotePath = (currentGroupPath == null || currentGroupPath.isBlank())
-                ? file.getName()
-                : currentGroupPath + "/" + file.getName();
-        out.writeUTF("UPLOADGROUP " + groupId + "|" + remotePath + " " + file.length());
-        return sendFileBytes(file, progressCallback);
-    }
-
-    public String downloadGroupFile(String groupId, String relativePath, File saveTo) throws Exception {
-        return downloadGroupFile(groupId, relativePath, saveTo, null);
-    }
-
-    public String downloadGroupFile(String groupId, String relativePath, File saveTo,
-                                    Consumer<Double> progressCallback) throws Exception {
-        out.writeUTF("DOWNLOADGROUP " + groupId + "|" + relativePath);
-        return receiveFileTo(saveTo, progressCallback);
-    }
-
-    public String deleteGroupFile(String groupId, String relativePath) throws Exception {
-        out.writeUTF("DELETEGROUPFILE " + groupId + "|" + relativePath);
-        return in.readUTF();
-    }
-
-    // ===== HELPERS =====
-
-    private String sendFileBytes(File file, Consumer<Double> progressCallback) throws Exception {
-        byte[] buffer = new byte[4096];
-        long totalBytes = file.length();
-        long uploadedBytes = 0;
-        int bytesRead;
-
-        try (FileInputStream fis = new FileInputStream(file)) {
-            while ((bytesRead = fis.read(buffer)) != -1) {
-                out.write(buffer, 0, bytesRead);
-                uploadedBytes += bytesRead;
-                if (progressCallback != null && totalBytes > 0) {
-                    progressCallback.accept((double) uploadedBytes / totalBytes);
-                }
-            }
-        }
-        out.flush();
-        return in.readUTF();
-    }
-
-    private String receiveFileTo(File saveTo, Consumer<Double> progressCallback) throws Exception {
-        String response = in.readUTF();
-        if (response.startsWith("ERROR")) return response;
-
-        long fileSize = Long.parseLong(response.split(" ", 2)[1].trim());
-        byte[] buffer = new byte[4096];
-        long remaining = fileSize;
-        long downloaded = 0;
-
-        try (FileOutputStream fos = new FileOutputStream(saveTo)) {
-            while (remaining > 0) {
-                int read = in.read(buffer, 0, (int) Math.min(buffer.length, remaining));
-                if (read == -1) break;
-                fos.write(buffer, 0, read);
-                remaining -= read;
-                downloaded += read;
-                if (progressCallback != null && fileSize > 0) {
-                    progressCallback.accept((double) downloaded / fileSize);
-                }
-            }
-        }
-        return "DOWNLOAD_SUCCESS";
-    }
-
-    /**
-     * FIX: sizes and dates lists now track a single global index across both
-     * folders and files, so AdminController can correctly map them.
-     * Folders are added first (as the server sends them first), then files.
-     */
-    private ListResult parseListResult(String response) {
         List<String> folders = new ArrayList<>();
         List<String> files = new ArrayList<>();
         List<String> sizes = new ArrayList<>();
         List<String> dates = new ArrayList<>();
 
-        if (response.equals("EMPTY") || response.startsWith("ERROR")) {
+        if (response.equals("EMPTY"))
             return new ListResult(folders, files, sizes, dates);
-        }
-
-        // Two-pass: collect folders first, then files, preserving order for size/date alignment
-        List<String[]> folderEntries = new ArrayList<>();
-        List<String[]> fileEntries = new ArrayList<>();
 
         String[] items = response.split(",");
         for (String item : items) {
-            if (item.trim().isEmpty()) continue;
-            String[] parts = item.split(":", 4);
+            String[] parts = item.split(":");
             if (parts.length >= 4) {
-                if (parts[0].equals("DIR")) folderEntries.add(parts);
-                else fileEntries.add(parts);
+                boolean isDir = parts[0].equals("DIR");
+                if (isDir) folders.add(parts[1]);
+                else files.add(parts[1]);
+                sizes.add(parts[2]);
+                dates.add(parts[3]);
             }
         }
-
-        for (String[] parts : folderEntries) {
-            folders.add(parts[1]);
-            sizes.add(parts[2]);
-            dates.add(parts[3]);
-        }
-        for (String[] parts : fileEntries) {
-            files.add(parts[1]);
-            sizes.add(parts[2]);
-            dates.add(parts[3]);
-        }
-
         return new ListResult(folders, files, sizes, dates);
     }
-
-    // ===== DATA CLASSES =====
 
     public static class UserInfo {
         public String username;
@@ -353,6 +251,67 @@ public class NetworkManager {
         }
     }
 
+    public String shareFile(String targetUser, String filePath) throws Exception {
+        out.writeUTF("SHARE " + targetUser + "|" + filePath);
+        return in.readUTF();
+    }
+
+    public String unshareFile(String targetUser, String filePath) throws Exception {
+        out.writeUTF("UNSHARE " + targetUser + "|" + filePath);
+        return in.readUTF();
+    }
+
+    public List<SharedFileInfo> listSharedWithMe() throws Exception {
+        out.writeUTF("LISTSHARED");
+        String response = in.readUTF();
+
+        List<SharedFileInfo> files = new ArrayList<>();
+        if (response.equals("EMPTY")) return files;
+
+        String[] items = response.split(",");
+        for (String item : items) {
+            String[] parts = item.split("\\|");
+            if (parts.length >= 3) {
+                files.add(new SharedFileInfo(parts[0], parts[1], parts[2]));
+            }
+        }
+        return files;
+    }
+
+    public String downloadSharedFile(String ownerUsername,
+                                     String filePath, File saveTo) throws Exception {
+        return downloadSharedFile(ownerUsername, filePath, saveTo, null);
+    }
+
+    public String downloadSharedFile(String ownerUsername,
+                                     String filePath, File saveTo,
+                                     Consumer<Double> progressCallback) throws Exception {
+        out.writeUTF("DOWNLOADSHARED " + ownerUsername + "|" + filePath);
+        String response = in.readUTF();
+
+        if (response.startsWith("ERROR")) return response;
+
+        long fileSize = Long.parseLong(response.split(" ")[1]);
+        byte[] buffer = new byte[4096];
+        long remaining = fileSize;
+        long downloaded = 0;
+        FileOutputStream fos = new FileOutputStream(saveTo);
+
+        while (remaining > 0) {
+            int read = in.read(buffer, 0,
+                    (int) Math.min(buffer.length, remaining));
+            fos.write(buffer, 0, read);
+            remaining -= read;
+            downloaded += read;
+            if (progressCallback != null) {
+                double progress = (double) downloaded / fileSize;
+                progressCallback.accept(progress);
+            }
+        }
+        fos.close();
+        return "DOWNLOAD_SUCCESS";
+    }
+
     public static class SharedFileInfo {
         public String sharedBy;
         public String filePath;
@@ -363,6 +322,134 @@ public class NetworkManager {
             this.filePath = filePath;
             this.filename = filename;
         }
+    }
+
+    // ===================== GROUP FEATURES =====================
+
+    public String createGroup(String groupName) throws Exception {
+        out.writeUTF("CREATEGROUP " + groupName);
+        return in.readUTF();
+    }
+
+    public String addGroupMember(String groupId, String username) throws Exception {
+        out.writeUTF("ADDGROUPMEMBER " + groupId + "|" + username);
+        return in.readUTF();
+    }
+
+    public List<GroupInfo> listGroups() throws Exception {
+        out.writeUTF("LISTGROUPS");
+        String response = in.readUTF();
+
+        List<GroupInfo> groups = new ArrayList<>();
+        if (response.equals("EMPTY")) return groups;
+
+        String[] items = response.split(",");
+        for (String item : items) {
+            String[] parts = item.split("\\|");
+            if (parts.length >= 3) {
+                groups.add(new GroupInfo(parts[0], parts[1], parts[2]));
+            }
+        }
+        return groups;
+    }
+
+    public ListResult listGroupFiles(String groupId, String relativePath) throws Exception {
+        String command = "LISTGROUPFILES " + groupId;
+        if (relativePath != null && !relativePath.trim().isEmpty()) {
+            command += "|" + relativePath.trim();
+        }
+
+        out.writeUTF(command);
+        String response = in.readUTF();
+
+        List<String> folders = new ArrayList<>();
+        List<String> files = new ArrayList<>();
+        List<String> sizes = new ArrayList<>();
+        List<String> dates = new ArrayList<>();
+
+        if (response.equals("EMPTY"))
+            return new ListResult(folders, files, sizes, dates);
+
+        String[] items = response.split(",");
+        for (String item : items) {
+            String[] parts = item.split(":");
+            if (parts.length >= 4) {
+                boolean isDir = parts[0].equals("DIR");
+                String name = parts[1];
+                String size = parts[2];
+                String date = parts[3];
+
+                if (isDir) folders.add(name);
+                else files.add(name);
+                sizes.add(size);
+                dates.add(date);
+            }
+        }
+
+        return new ListResult(folders, files, sizes, dates);
+    }
+
+    public String uploadGroupFile(File file, String groupId, String currentPath,
+                                  Consumer<Double> progressCallback) throws Exception {
+        String remotePath = (currentPath == null || currentPath.isEmpty())
+                ? file.getName()
+                : currentPath + "/" + file.getName();
+
+        out.writeUTF("UPLOADGROUP " + groupId + "|" + remotePath + " " + file.length());
+
+        byte[] buffer = new byte[4096];
+        FileInputStream fis = new FileInputStream(file);
+        long totalBytes = file.length();
+        long uploadedBytes = 0;
+        int bytesRead;
+
+        while ((bytesRead = fis.read(buffer)) != -1) {
+            out.write(buffer, 0, bytesRead);
+            uploadedBytes += bytesRead;
+            if (progressCallback != null) {
+                double progress = (double) uploadedBytes / totalBytes;
+                progressCallback.accept(progress);
+            }
+        }
+        fis.close();
+        out.flush();
+        return in.readUTF();
+    }
+
+    public String downloadGroupFile(String groupId, String filePath, File saveTo,
+                                    Consumer<Double> progressCallback) throws Exception {
+        out.writeUTF("DOWNLOADGROUP " + groupId + "|" + filePath);
+        String response = in.readUTF();
+
+        if (response.startsWith("ERROR")) return response;
+
+        long fileSize = Long.parseLong(response.split(" ")[1]);
+        byte[] buffer = new byte[4096];
+        long remaining = fileSize;
+        long downloaded = 0;
+        FileOutputStream fos = new FileOutputStream(saveTo);
+
+        while (remaining > 0) {
+            int read = in.read(buffer, 0, (int) Math.min(buffer.length, remaining));
+            fos.write(buffer, 0, read);
+            remaining -= read;
+            downloaded += read;
+            if (progressCallback != null) {
+                double progress = (double) downloaded / fileSize;
+                progressCallback.accept(progress);
+            }
+        }
+        fos.close();
+        return "DOWNLOAD_SUCCESS";
+    }
+
+    public String downloadGroupFile(String groupId, String filePath, File saveTo) throws Exception {
+        return downloadGroupFile(groupId, filePath, saveTo, null);
+    }
+
+    public String deleteGroupFile(String groupId, String filePath) throws Exception {
+        out.writeUTF("DELETEGROUPFILE " + groupId + "|" + filePath);
+        return in.readUTF();
     }
 
     public static class GroupInfo {
@@ -376,4 +463,5 @@ public class NetworkManager {
             this.owner = owner;
         }
     }
+
 }

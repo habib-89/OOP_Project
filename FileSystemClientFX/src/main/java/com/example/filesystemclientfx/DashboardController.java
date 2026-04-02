@@ -9,6 +9,8 @@ import javafx.scene.control.*;
 import javafx.scene.control.ButtonBar;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
+import javafx.scene.shape.Circle;
+import javafx.embed.swing.SwingFXUtils;
 import javafx.scene.media.Media;
 import javafx.scene.media.MediaPlayer;
 import javafx.scene.media.MediaView;
@@ -17,15 +19,21 @@ import javafx.stage.Stage;
 import javafx.util.Duration;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import javax.imageio.ImageIO;
+import java.awt.image.BufferedImage;
 
 public class DashboardController {
 
     @FXML private Label welcomeLabel;
     @FXML private Label statusLabel;
     @FXML private ImageView imagePreview;
+    @FXML private ImageView profileImageView;
+    @FXML private Circle profileBorderCircle;
+    @FXML private Button changeProfilePicBtn;
     @FXML private Label previewLabel;
     @FXML private Label pathLabel;
     @FXML private ProgressBar uploadProgressBar;
@@ -139,6 +147,8 @@ public class DashboardController {
                 if (zoomLabel != null) zoomLabel.setText((int) n.doubleValue() + "%");
             });
         }
+
+        initializeProfileAvatar();
     }
 
     public void setUsername(String username) {
@@ -155,6 +165,123 @@ public class DashboardController {
         openNewTab("");
         loadBookmarksBar();
         updateActionButtons();
+        loadProfilePicture();
+    }
+
+
+    // =========================================================================
+    //  PROFILE PICTURE
+    // =========================================================================
+
+    private void initializeProfileAvatar() {
+        if (profileImageView != null) {
+            Circle clip = new Circle(32, 32, 32);
+            profileImageView.setClip(clip);
+            profileImageView.setPreserveRatio(false);
+            profileImageView.setFitWidth(64);
+            profileImageView.setFitHeight(64);
+        }
+        applyProfileBorderStyle();
+    }
+
+    private void applyProfileBorderStyle() {
+        if (profileBorderCircle == null) return;
+        profileBorderCircle.setStyle("-fx-fill: transparent; -fx-stroke: #00d4ff; -fx-stroke-width: 3;");
+    }
+
+    private File convertImageToPng(File source) throws IOException {
+        BufferedImage original = ImageIO.read(source);
+        if (original == null) {
+            throw new IOException("Unsupported image format.");
+        }
+
+        File temp = File.createTempFile("profile_upload_", ".png");
+        temp.deleteOnExit();
+        ImageIO.write(original, "png", temp);
+        return temp;
+    }
+
+    private void loadProfilePicture() {
+        if (network == null) return;
+
+        Thread t = new Thread(() -> {
+            try {
+                File temp = File.createTempFile("profile_view_", ".png");
+                temp.deleteOnExit();
+
+                String result = network.downloadProfilePicture(temp);
+
+                javafx.application.Platform.runLater(() -> {
+                    applyProfileBorderStyle();
+                    if ("DOWNLOAD_SUCCESS".equals(result)) {
+                        try {
+                            profileImageView.setImage(new Image(new FileInputStream(temp)));
+                        } catch (Exception e) {
+                            profileImageView.setImage(null);
+                        }
+                    } else {
+                        profileImageView.setImage(null);
+                    }
+                });
+            } catch (Exception e) {
+                javafx.application.Platform.runLater(() -> {
+                    applyProfileBorderStyle();
+                    profileImageView.setImage(null);
+                });
+            }
+        });
+        t.setDaemon(true);
+        t.start();
+    }
+
+    @FXML
+    private void handleChangeProfilePicture() {
+        if (network == null) {
+            statusLabel.setText("Connection not ready.");
+            return;
+        }
+
+        FileChooser chooser = new FileChooser();
+        chooser.setTitle("Select Profile Picture");
+        chooser.getExtensionFilters().add(
+                new FileChooser.ExtensionFilter("Images", "*.png", "*.jpg", "*.jpeg", "*.bmp", "*.gif", "*.webp")
+        );
+
+        File selected = chooser.showOpenDialog(welcomeLabel.getScene().getWindow());
+        if (selected == null) return;
+
+        showProgress("Uploading profile...");
+        Thread t = new Thread(() -> {
+            try {
+                File pngFile = convertImageToPng(selected);
+                String uploadResult = network.uploadProfilePicture(
+                        pngFile,
+                        p -> javafx.application.Platform.runLater(() -> updateProgress(p, "Uploading profile..."))
+                );
+
+                javafx.application.Platform.runLater(() -> {
+                    hideProgress();
+                    if ("UPLOAD_PROFILE_SUCCESS".equals(uploadResult)) {
+                        try {
+                            applyProfileBorderStyle();
+                            profileImageView.setImage(new Image(new FileInputStream(pngFile)));
+                            statusLabel.setText("✅ Profile picture updated.");
+                        } catch (Exception ex) {
+                            statusLabel.setText("Profile updated, but preview failed: " + ex.getMessage());
+                        }
+                    } else {
+                        statusLabel.setText("Upload failed: " + uploadResult);
+                    }
+                });
+            } catch (Exception e) {
+                javafx.application.Platform.runLater(() -> {
+                    hideProgress();
+                    statusLabel.setText("Error: " + e.getMessage());
+                });
+            }
+        });
+        t.setDaemon(true);
+        t.start();
     }
 
     // =========================================================================

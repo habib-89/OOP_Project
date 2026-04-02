@@ -27,6 +27,16 @@ public class NetworkManager {
         in = new DataInputStream(socket.getInputStream());
     }
 
+    public boolean isConnected() {
+        return socket != null && socket.isConnected() && !socket.isClosed();
+    }
+
+    public void disconnect() {
+        try {
+            if (socket != null) socket.close();
+        } catch (IOException ignored) {}
+    }
+
     public String sendMessage(String message) throws Exception {
         out.writeUTF(message);
         return in.readUTF();
@@ -83,7 +93,9 @@ public class NetworkManager {
 
     public String uploadFile(File file, String currentPath,
                              Consumer<Double> progressCallback) throws Exception {
-        String remotePath = currentPath.isEmpty() ? file.getName() : currentPath + "/" + file.getName();
+        String remotePath = currentPath.isEmpty()
+                ? file.getName()
+                : currentPath + "/" + file.getName();
         out.writeUTF("UPLOAD " + remotePath + " " + file.length());
         return sendFileBytes(file, progressCallback);
     }
@@ -112,8 +124,8 @@ public class NetworkManager {
 
         String[] items = response.split(",");
         for (String item : items) {
-            String[] parts = item.split(":");
-            if (parts.length >= 2) users.add(new UserInfo(parts[0], parts[1]));
+            String[] parts = item.split(":", 2);
+            if (parts.length >= 2) users.add(new UserInfo(parts[0].trim(), parts[1].trim()));
         }
         return users;
     }
@@ -147,9 +159,9 @@ public class NetworkManager {
 
         String[] items = response.split(",");
         for (String item : items) {
-            String[] parts = item.split("\\|");
+            String[] parts = item.split("\\|", 3);
             if (parts.length >= 3) {
-                files.add(new SharedFileInfo(parts[0], parts[1], parts[2]));
+                files.add(new SharedFileInfo(parts[0].trim(), parts[1].trim(), parts[2].trim()));
             }
         }
         return files;
@@ -186,9 +198,9 @@ public class NetworkManager {
 
         String[] items = response.split(",");
         for (String item : items) {
-            String[] parts = item.split("\\|");
+            String[] parts = item.split("\\|", 3);
             if (parts.length >= 3) {
-                groups.add(new GroupInfo(parts[0], parts[1], parts[2]));
+                groups.add(new GroupInfo(parts[0].trim(), parts[1].trim(), parts[2].trim()));
             }
         }
         return groups;
@@ -251,7 +263,7 @@ public class NetworkManager {
         String response = in.readUTF();
         if (response.startsWith("ERROR")) return response;
 
-        long fileSize = Long.parseLong(response.split(" ")[1]);
+        long fileSize = Long.parseLong(response.split(" ", 2)[1].trim());
         byte[] buffer = new byte[4096];
         long remaining = fileSize;
         long downloaded = 0;
@@ -259,6 +271,7 @@ public class NetworkManager {
         try (FileOutputStream fos = new FileOutputStream(saveTo)) {
             while (remaining > 0) {
                 int read = in.read(buffer, 0, (int) Math.min(buffer.length, remaining));
+                if (read == -1) break;
                 fos.write(buffer, 0, read);
                 remaining -= read;
                 downloaded += read;
@@ -270,6 +283,11 @@ public class NetworkManager {
         return "DOWNLOAD_SUCCESS";
     }
 
+    /**
+     * FIX: sizes and dates lists now track a single global index across both
+     * folders and files, so AdminController can correctly map them.
+     * Folders are added first (as the server sends them first), then files.
+     */
     private ListResult parseListResult(String response) {
         List<String> folders = new ArrayList<>();
         List<String> files = new ArrayList<>();
@@ -280,22 +298,35 @@ public class NetworkManager {
             return new ListResult(folders, files, sizes, dates);
         }
 
+        // Two-pass: collect folders first, then files, preserving order for size/date alignment
+        List<String[]> folderEntries = new ArrayList<>();
+        List<String[]> fileEntries = new ArrayList<>();
+
         String[] items = response.split(",");
         for (String item : items) {
-            String[] parts = item.split(":");
+            if (item.trim().isEmpty()) continue;
+            String[] parts = item.split(":", 4);
             if (parts.length >= 4) {
-                boolean isDir = parts[0].equals("DIR");
-                String name = parts[1];
-                String size = parts[2];
-                String date = parts[3];
-                if (isDir) folders.add(name); else files.add(name);
-                sizes.add(size);
-                dates.add(date);
+                if (parts[0].equals("DIR")) folderEntries.add(parts);
+                else fileEntries.add(parts);
             }
+        }
+
+        for (String[] parts : folderEntries) {
+            folders.add(parts[1]);
+            sizes.add(parts[2]);
+            dates.add(parts[3]);
+        }
+        for (String[] parts : fileEntries) {
+            files.add(parts[1]);
+            sizes.add(parts[2]);
+            dates.add(parts[3]);
         }
 
         return new ListResult(folders, files, sizes, dates);
     }
+
+    // ===== DATA CLASSES =====
 
     public static class UserInfo {
         public String username;

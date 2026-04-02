@@ -1,2 +1,3 @@
 admin|Image|Image|true
 admin|Arafat.jpg|Image/Arafat.jpg|false
+admin|Adnan.jpg|Image/Adnan.jpg|false

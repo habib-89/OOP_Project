@@ -3,6 +3,7 @@
 <?import javafx.scene.control.*?>
 <?import javafx.scene.image.*?>
 <?import javafx.scene.media.*?>
+<?import javafx.scene.web.*?>
 
 <BorderPane xmlns="http://javafx.com/javafx/8"
             xmlns:fx="http://javafx.com/fxml"
@@ -117,9 +118,9 @@
                 <Label fx:id="progressLabel" text="" styleClass="progress-label" visible="false" managed="false"/>
             </VBox>
 
+            <!-- ===== FILE BROWSER VIEW ===== -->
             <HBox fx:id="fileView" spacing="0" VBox.vgrow="ALWAYS">
                 <VBox fx:id="tableContainer" HBox.hgrow="ALWAYS" spacing="0" VBox.vgrow="ALWAYS"/>
-
                 <VBox styleClass="preview-panel" spacing="12"
                       alignment="TOP_CENTER" prefWidth="240">
                     <Label text="PREVIEW" styleClass="preview-title"/>
@@ -130,6 +131,7 @@
                 </VBox>
             </HBox>
 
+            <!-- ===== VIDEO PLAYER ===== -->
             <VBox fx:id="videoView" VBox.vgrow="ALWAYS" visible="false" managed="false"
                   style="-fx-background-color: #000000;">
                 <HBox alignment="CENTER_LEFT" spacing="12"
@@ -197,6 +199,114 @@
                             prefWidth="100" style="-fx-accent: #00d4ff;"/>
                 </HBox>
             </VBox>
+
+            <!-- ===== IMAGE VIEWER ===== -->
+            <VBox fx:id="imageView" VBox.vgrow="ALWAYS" visible="false" managed="false"
+                  style="-fx-background-color: #060a12;">
+                <!-- Header bar -->
+                <HBox alignment="CENTER_LEFT" spacing="12"
+                      style="-fx-padding: 10 16 10 16; -fx-background-color: #0a0e1a;
+                             -fx-border-color: transparent transparent rgba(0,212,255,0.2) transparent;
+                             -fx-border-width: 0 0 1 0;">
+                    <Label text="🖼" style="-fx-font-size: 16px;"/>
+                    <Label fx:id="imageTitleLabel" text=""
+                           style="-fx-text-fill: #ffffff; -fx-font-size: 13px;
+                                  -fx-font-weight: bold; -fx-font-family: 'Courier New';"/>
+                    <Pane HBox.hgrow="ALWAYS"/>
+                    <Button text="🖥 Open Externally" onAction="#handleOpenImageExternal"
+                            style="-fx-background-color: rgba(0,212,255,0.08);
+                                   -fx-text-fill: #00d4ff; -fx-font-size: 11px;
+                                   -fx-font-family: 'Courier New'; -fx-background-radius: 7;
+                                   -fx-padding: 7 12 7 12; -fx-cursor: hand;
+                                   -fx-border-color: rgba(0,212,255,0.3);
+                                   -fx-border-width: 1; -fx-border-radius: 7;"/>
+                    <Button text="◀ Back to Files" onAction="#handleBackFromImage"
+                            style="-fx-background-color: rgba(0,212,255,0.08);
+                                   -fx-text-fill: #00d4ff; -fx-font-size: 11px;
+                                   -fx-font-family: 'Courier New'; -fx-background-radius: 7;
+                                   -fx-padding: 7 14 7 14; -fx-cursor: hand;
+                                   -fx-border-color: rgba(0,212,255,0.3);
+                                   -fx-border-width: 1; -fx-border-radius: 7;"/>
+                </HBox>
+
+                <!-- Image display area -->
+                <ScrollPane VBox.vgrow="ALWAYS" fitToWidth="true" fitToHeight="true"
+                            style="-fx-background-color: #060a12; -fx-background: #060a12;
+                                   -fx-border-width: 0;">
+                    <StackPane style="-fx-background-color: #060a12; -fx-padding: 20;"
+                               minWidth="400" minHeight="300">
+                        <ImageView fx:id="imageViewFull" preserveRatio="true"/>
+                    </StackPane>
+                </ScrollPane>
+
+                <!-- Zoom controls -->
+                <HBox alignment="CENTER" spacing="12"
+                      style="-fx-padding: 10 16 14 16; -fx-background-color: #0a0e1a;
+                             -fx-border-color: rgba(0,212,255,0.15) transparent transparent transparent;
+                             -fx-border-width: 1 0 0 0;">
+                    <Button text="🔍−" onAction="#handleZoomOut"
+                            style="-fx-background-color: rgba(0,212,255,0.08);
+                                   -fx-text-fill: #00d4ff; -fx-font-size: 14px;
+                                   -fx-background-radius: 8; -fx-padding: 6 14 6 14;
+                                   -fx-cursor: hand; -fx-border-color: rgba(0,212,255,0.3);
+                                   -fx-border-width: 1; -fx-border-radius: 8;"/>
+                    <Slider fx:id="zoomSlider" min="10" max="400" value="100"
+                            prefWidth="200" style="-fx-accent: #00d4ff;"/>
+                    <Button text="🔍+" onAction="#handleZoomIn"
+                            style="-fx-background-color: rgba(0,212,255,0.08);
+                                   -fx-text-fill: #00d4ff; -fx-font-size: 14px;
+                                   -fx-background-radius: 8; -fx-padding: 6 14 6 14;
+                                   -fx-cursor: hand; -fx-border-color: rgba(0,212,255,0.3);
+                                   -fx-border-width: 1; -fx-border-radius: 8;"/>
+                    <Button text="⊡ Reset" onAction="#handleZoomReset"
+                            style="-fx-background-color: rgba(0,212,255,0.08);
+                                   -fx-text-fill: #00d4ff; -fx-font-size: 11px;
+                                   -fx-font-family: 'Courier New'; -fx-background-radius: 8;
+                                   -fx-padding: 7 12 7 12; -fx-cursor: hand;
+                                   -fx-border-color: rgba(0,212,255,0.3);
+                                   -fx-border-width: 1; -fx-border-radius: 8;"/>
+                    <Label fx:id="zoomLabel" text="100%"
+                           style="-fx-text-fill: rgba(0,212,255,0.7); -fx-font-size: 12px;
+                                  -fx-font-family: 'Courier New'; -fx-min-width: 45px;"/>
+                </HBox>
+            </VBox>
+
+            <!-- ===== PDF VIEWER ===== -->
+            <VBox fx:id="pdfView" VBox.vgrow="ALWAYS" visible="false" managed="false"
+                  style="-fx-background-color: #060a12;">
+                <!-- Header bar -->
+                <HBox alignment="CENTER_LEFT" spacing="12"
+                      style="-fx-padding: 10 16 10 16; -fx-background-color: #0a0e1a;
+                             -fx-border-color: transparent transparent rgba(0,212,255,0.2) transparent;
+                             -fx-border-width: 0 0 1 0;">
+                    <Label text="📕" style="-fx-font-size: 16px;"/>
+                    <Label fx:id="pdfTitleLabel" text=""
+                           style="-fx-text-fill: #ffffff; -fx-font-size: 13px;
+                                  -fx-font-weight: bold; -fx-font-family: 'Courier New';"/>
+                    <Pane HBox.hgrow="ALWAYS"/>
+                    <Label fx:id="pdfPageLabel" text=""
+                           style="-fx-text-fill: rgba(0,212,255,0.6); -fx-font-size: 11px;
+                                  -fx-font-family: 'Courier New';"/>
+                    <Button text="🖥 Open Externally" onAction="#handleOpenPdfExternal"
+                            style="-fx-background-color: rgba(0,212,255,0.08);
+                                   -fx-text-fill: #00d4ff; -fx-font-size: 11px;
+                                   -fx-font-family: 'Courier New'; -fx-background-radius: 7;
+                                   -fx-padding: 7 12 7 12; -fx-cursor: hand;
+                                   -fx-border-color: rgba(0,212,255,0.3);
+                                   -fx-border-width: 1; -fx-border-radius: 7;"/>
+                    <Button text="◀ Back to Files" onAction="#handleBackFromPdf"
+                            style="-fx-background-color: rgba(0,212,255,0.08);
+                                   -fx-text-fill: #00d4ff; -fx-font-size: 11px;
+                                   -fx-font-family: 'Courier New'; -fx-background-radius: 7;
+                                   -fx-padding: 7 14 7 14; -fx-cursor: hand;
+                                   -fx-border-color: rgba(0,212,255,0.3);
+                                   -fx-border-width: 1; -fx-border-radius: 7;"/>
+                </HBox>
+
+                <!-- WebView renders the PDF -->
+                <WebView fx:id="pdfWebView" VBox.vgrow="ALWAYS"/>
+            </VBox>
+
         </VBox>
     </center>
 </BorderPane>

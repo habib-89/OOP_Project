@@ -5,6 +5,7 @@ import javafx.collections.FXCollections;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.stage.Stage;
+import java.util.ArrayList;
 import java.util.List;
 
 public class AdminController {
@@ -36,7 +37,6 @@ public class AdminController {
         fileDateColumn.setCellValueFactory(
                 data -> new SimpleStringProperty(data.getValue().getDate()));
 
-        // When user is selected in table, show their files
         userTable.getSelectionModel().selectedItemProperty()
                 .addListener((obs, oldVal, newVal) -> {
                     if (newVal != null) {
@@ -67,21 +67,29 @@ public class AdminController {
         try {
             NetworkManager.ListResult result = network.viewUserFiles(username);
 
-            List<DashboardController.FileItem> items = new java.util.ArrayList<>();
-            int idx = 0;
-            for (String folder : result.folders) {
-                String size = idx < result.sizes.size() ? result.sizes.get(idx) : "—";
-                String date = idx < result.dates.size() ? result.dates.get(idx) : "—";
-                items.add(new DashboardController.FileItem(
-                        "📁  " + folder, folder, true, size, date));
-                idx++;
+            // FIX: The server returns items in order: all entries are in the sizes/dates lists
+            // in the same order as folders first, then files — matching parseListResult output.
+            // We need to map sizes and dates correctly per-item, not with a shared index.
+            List<DashboardController.FileItem> items = new ArrayList<>();
+
+            // parseListResult fills folders and files separately but sizes/dates
+            // are in the combined original order: folders come first in the server response.
+            int folderCount = result.folders.size();
+            int fileCount = result.files.size();
+
+            for (int i = 0; i < folderCount; i++) {
+                String size = i < result.sizes.size() ? result.sizes.get(i) : "—";
+                String date = i < result.dates.size() ? result.dates.get(i) : "—";
+                String name = result.folders.get(i);
+                items.add(new DashboardController.FileItem("📁  " + name, name, true, size, date));
             }
-            for (String file : result.files) {
+
+            for (int i = 0; i < fileCount; i++) {
+                int idx = folderCount + i;
                 String size = idx < result.sizes.size() ? result.sizes.get(idx) : "—";
                 String date = idx < result.dates.size() ? result.dates.get(idx) : "—";
-                items.add(new DashboardController.FileItem(
-                        "📄  " + file, file, false, size, date));
-                idx++;
+                String name = result.files.get(i);
+                items.add(new DashboardController.FileItem("📄  " + name, name, false, size, date));
             }
 
             fileTable.setItems(FXCollections.observableArrayList(items));
@@ -93,8 +101,7 @@ public class AdminController {
 
     @FXML
     private void handleDeleteUser() {
-        NetworkManager.UserInfo selected =
-                userTable.getSelectionModel().getSelectedItem();
+        NetworkManager.UserInfo selected = userTable.getSelectionModel().getSelectedItem();
 
         if (selected == null) {
             statusLabel.setText("Please select a user to delete.");
@@ -109,8 +116,7 @@ public class AdminController {
         Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
         alert.setTitle("Delete User");
         alert.setHeaderText("Are you sure?");
-        alert.setContentText("Delete user \"" + selected.username +
-                "\" and ALL their files?");
+        alert.setContentText("Delete user \"" + selected.username + "\" and ALL their files?");
 
         alert.showAndWait().ifPresent(response -> {
             if (response == ButtonType.OK) {
@@ -120,6 +126,7 @@ public class AdminController {
                         statusLabel.setText("✅ Deleted user: " + selected.username);
                         fileTable.setItems(FXCollections.observableArrayList());
                         selectedUserLabel.setText("No user selected");
+                        selectedUser = null;
                         loadUsers();
                     } else {
                         statusLabel.setText("Failed: " + result);

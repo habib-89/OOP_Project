@@ -1,35 +1,49 @@
 import java.io.*;
 import java.net.Socket;
 
+/**
+ * Simple CLI test client for the FileVault server.
+ * Uses DataInputStream/DataOutputStream to match the server's protocol.
+ */
 public class ClientMain {
 
     public static void main(String[] args) {
 
-        try {
-            Socket socket = new Socket("localhost", 5001);
+        try (Socket socket = new Socket("localhost", 5001)) {
 
-            BufferedReader console = new BufferedReader(
-                    new InputStreamReader(System.in));
-
-            BufferedReader in = new BufferedReader(
-                    new InputStreamReader(socket.getInputStream()));
-
-            PrintWriter out = new PrintWriter(
-                    socket.getOutputStream(), true);
+            DataOutputStream out = new DataOutputStream(socket.getOutputStream());
+            DataInputStream in = new DataInputStream(socket.getInputStream());
+            BufferedReader console = new BufferedReader(new InputStreamReader(System.in));
 
             System.out.println("Connected to server.");
-            out.println("LOGIN admin 1234");
-            System.out.println(in.readLine());
+            System.out.print("Username: ");
+            String username = console.readLine();
+            System.out.print("Password: ");
+            String password = console.readLine();
 
+            out.writeUTF("LOGIN " + username + " " + password);
+            String loginResponse = in.readUTF();
+            System.out.println("Login: " + loginResponse);
+
+            if (!loginResponse.equals("SUCCESS")) {
+                System.out.println("Login failed. Exiting.");
+                return;
+            }
+
+            System.out.println("Type commands (e.g. LISTDIR, MKDIR foldername, LOGOUT to quit):");
 
             String userInput;
+            while ((userInput = console.readLine()) != null) {
+                if (userInput.equalsIgnoreCase("LOGOUT") || userInput.equalsIgnoreCase("EXIT")) {
+                    System.out.println("Disconnecting.");
+                    break;
+                }
 
-            while (true) {
-                userInput = console.readLine();
-                out.println(userInput);
+                if (userInput.trim().isEmpty()) continue;
 
-                String response = in.readLine();
-                System.out.println(response);
+                out.writeUTF(userInput);
+                String response = in.readUTF();
+                System.out.println("Server: " + response);
             }
 
         } catch (Exception e) {

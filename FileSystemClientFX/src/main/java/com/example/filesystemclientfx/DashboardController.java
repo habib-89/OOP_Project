@@ -47,7 +47,7 @@ public class DashboardController {
     @FXML private javafx.scene.layout.HBox tabButtonsBox;
     @FXML private javafx.scene.layout.VBox tableContainer;
 
-    // Video player
+    // ── Video player ──────────────────────────────────────────────────────────
     @FXML private javafx.scene.layout.VBox videoView;
     @FXML private MediaView mediaView;
     @FXML private Button playPauseBtn;
@@ -58,40 +58,69 @@ public class DashboardController {
     @FXML private Label videoTitleLabel;
     @FXML private Button muteBtn;
 
-    private MediaPlayer mediaPlayer;
-    private boolean videoPlaying = false;
-    private boolean isMuted = false;
-    private boolean seekDragging = false;
+    // ── Image viewer ──────────────────────────────────────────────────────────
+    @FXML private javafx.scene.layout.VBox imageView;
+    @FXML private ImageView imageViewFull;
+    @FXML private Label imageTitleLabel;
+    @FXML private Slider zoomSlider;
+    @FXML private Label zoomLabel;
 
+    // ── PDF viewer ────────────────────────────────────────────────────────────
+    @FXML private javafx.scene.layout.VBox pdfView;
+    @FXML private javafx.scene.web.WebView pdfWebView;
+    @FXML private Label pdfTitleLabel;
+    @FXML private Label pdfPageLabel;
+
+    // ── Media state ───────────────────────────────────────────────────────────
+    private MediaPlayer mediaPlayer;
+    private boolean videoPlaying  = false;
+    private boolean isMuted       = false;
+    private boolean seekDragging  = false;
+
+    // Currently open image / PDF file (for zoom / external open)
+    private File currentImageFile = null;
+    private File currentPdfFile   = null;
+
+    // ── App state ─────────────────────────────────────────────────────────────
     private NetworkManager network;
     private String username;
-    private String currentPath = "";
-    private boolean isDarkTheme = true;
-    private boolean inRecycleBin = false;
-    private boolean inSharedView = false;
-    private boolean inGroupView = false;
-    private String currentGroupId = null;
-    private String currentGroupName = null;
-    private String currentGroupPath = "";
-    private List<FileItem> allItems = new ArrayList<>();
+    private String currentPath      = "";
+    private boolean isDarkTheme     = true;
+    private boolean inRecycleBin    = false;
+    private boolean inSharedView    = false;
+    private boolean inGroupView     = false;
+    private String  currentGroupId   = null;
+    private String  currentGroupName = null;
+    private String  currentGroupPath = "";
+    private List<FileItem> allItems  = new ArrayList<>();
 
     private List<TabState> tabs = new ArrayList<>();
     private TabState activeTab;
     private int tabCounter = 1;
 
     private boolean sortAscending = true;
-    private String sortColumn = "name";
+    private String  sortColumn    = "name";
 
-    private static final Set<String> IMAGE_EXTENSIONS = Set.of("jpg","jpeg","png","gif","bmp");
-    private static final Set<String> VIDEO_EXTENSIONS = Set.of("mp4","avi","mkv","mov");
+    private static final Set<String> IMAGE_EXTENSIONS =
+            Set.of("jpg","jpeg","png","gif","bmp","webp");
+    private static final Set<String> VIDEO_EXTENSIONS =
+            Set.of("mp4","avi","mkv","mov");
+    private static final Set<String> PDF_EXTENSIONS =
+            Set.of("pdf");
+
     private long lastClickTime = 0;
+
+    // =========================================================================
+    //  INIT
+    // =========================================================================
 
     @FXML
     public void initialize() {
         seekSlider.setOnMousePressed(e -> seekDragging = true);
         seekSlider.setOnMouseReleased(e -> {
             seekDragging = false;
-            if (mediaPlayer != null) mediaPlayer.seek(Duration.seconds(seekSlider.getValue()));
+            if (mediaPlayer != null)
+                mediaPlayer.seek(Duration.seconds(seekSlider.getValue()));
         });
         volumeSlider.valueProperty().addListener((obs, o, n) -> {
             if (mediaPlayer != null) {
@@ -99,6 +128,17 @@ public class DashboardController {
                 muteBtn.setText(n.doubleValue() == 0 ? "🔇" : "🔊");
             }
         });
+
+        // Zoom slider for image viewer
+        if (zoomSlider != null) {
+            zoomSlider.setMin(10);
+            zoomSlider.setMax(400);
+            zoomSlider.setValue(100);
+            zoomSlider.valueProperty().addListener((obs, o, n) -> {
+                applyZoom(n.doubleValue());
+                if (zoomLabel != null) zoomLabel.setText((int) n.doubleValue() + "%");
+            });
+        }
     }
 
     public void setUsername(String username) {
@@ -117,7 +157,33 @@ public class DashboardController {
         updateActionButtons();
     }
 
-    // ===================== TABS =====================
+    // =========================================================================
+    //  VIEWER SHOW / HIDE HELPERS
+    // =========================================================================
+
+    /** Restore the normal file-browser layout (hide all viewers). */
+    private void showFileBrowser() {
+        fileView.setVisible(true);   fileView.setManaged(true);
+        searchBar.setVisible(true);  searchBar.setManaged(true);
+        actionBar.setVisible(true);  actionBar.setManaged(true);
+        videoView.setVisible(false); videoView.setManaged(false);
+        if (imageView != null) { imageView.setVisible(false); imageView.setManaged(false); }
+        if (pdfView   != null) { pdfView.setVisible(false);   pdfView.setManaged(false); }
+    }
+
+    /** Hide everything before showing a viewer. */
+    private void hideFileBrowserForViewer() {
+        fileView.setVisible(false);  fileView.setManaged(false);
+        searchBar.setVisible(false); searchBar.setManaged(false);
+        actionBar.setVisible(false); actionBar.setManaged(false);
+        videoView.setVisible(false); videoView.setManaged(false);
+        if (imageView != null) { imageView.setVisible(false); imageView.setManaged(false); }
+        if (pdfView   != null) { pdfView.setVisible(false);   pdfView.setManaged(false); }
+    }
+
+    // =========================================================================
+    //  TABS
+    // =========================================================================
 
     @FXML
     private void handleNewTab() {
@@ -156,7 +222,7 @@ public class DashboardController {
         tv.setSortPolicy(table -> {
             if (table.getSortOrder().isEmpty()) return true;
             TableColumn<FileItem, ?> col = table.getSortOrder().get(0);
-            if (col == nameCol) sortColumn = "name";
+            if      (col == nameCol) sortColumn = "name";
             else if (col == sizeCol) sortColumn = "size";
             else if (col == dateCol) sortColumn = "date";
             sortAscending = col.getSortType() == TableColumn.SortType.ASCENDING;
@@ -185,20 +251,18 @@ public class DashboardController {
 
     private void switchToTab(TabState state) {
         if (activeTab != null) activeTab.tabButton.setStyle(inactiveTabStyle());
-
-        activeTab = state;
-        currentPath = state.currentPath;
-        inRecycleBin = state.inRecycleBin;
-        inSharedView = state.inSharedView;
-        inGroupView = state.inGroupView;
-        currentGroupId = state.currentGroupId;
+        activeTab        = state;
+        currentPath      = state.currentPath;
+        inRecycleBin     = state.inRecycleBin;
+        inSharedView     = state.inSharedView;
+        inGroupView      = state.inGroupView;
+        currentGroupId   = state.currentGroupId;
         currentGroupName = state.currentGroupName;
         currentGroupPath = state.currentGroupPath;
-        allItems = state.allItems;
+        allItems         = state.allItems;
 
         tableContainer.getChildren().clear();
         tableContainer.getChildren().add(state.tableView);
-
         state.tabButton.setStyle(activeTabStyle());
         updateNavigationStyles();
         updateActionButtons();
@@ -207,7 +271,7 @@ public class DashboardController {
             if (currentGroupId == null) {
                 pathLabel.setText("/ Groups");
             } else {
-                String pretty = currentGroupPath == null || currentGroupPath.isEmpty()
+                String pretty = (currentGroupPath == null || currentGroupPath.isEmpty())
                         ? currentGroupName
                         : currentGroupName + " / " + currentGroupPath.replace("/", " / ");
                 pathLabel.setText("/ Groups / " + pretty);
@@ -247,54 +311,44 @@ public class DashboardController {
                 "-fx-effect: dropshadow(gaussian, rgba(0,212,255,0.3), 6, 0, 0, 0);";
     }
 
-
     private void updateNavigationStyles() {
-        setNavActive(navFilesBtn, !inRecycleBin && !inSharedView && !inGroupView);
+        setNavActive(navFilesBtn,   !inRecycleBin && !inSharedView && !inGroupView);
         setNavActive(navRecycleBtn, inRecycleBin);
-        setNavActive(navSharedBtn, inSharedView);
+        setNavActive(navSharedBtn,  inSharedView);
         if (navGroupsBtn != null) setNavActive(navGroupsBtn, inGroupView);
     }
 
     private void setNavActive(Button btn, boolean active) {
         if (btn == null) return;
-        if (active) {
-            if (!btn.getStyleClass().contains("nav-btn-active")) btn.getStyleClass().add("nav-btn-active");
-        } else {
-            btn.getStyleClass().remove("nav-btn-active");
-        }
+        if (active) { if (!btn.getStyleClass().contains("nav-btn-active")) btn.getStyleClass().add("nav-btn-active"); }
+        else          btn.getStyleClass().remove("nav-btn-active");
     }
 
     private void updateActionButtons() {
-        boolean groupRoot = inGroupView && currentGroupId == null;
         boolean insideGroup = inGroupView && currentGroupId != null;
-
-        if (createGroupBtn != null) {
-            createGroupBtn.setVisible(inGroupView);
-            createGroupBtn.setManaged(inGroupView);
-        }
-        if (addGroupMemberBtn != null) {
-            addGroupMemberBtn.setVisible(insideGroup);
-            addGroupMemberBtn.setManaged(insideGroup);
-        }
-
-        if (sortBtn != null) sortBtn.setDisable(groupRoot);
+        if (createGroupBtn != null) { createGroupBtn.setVisible(inGroupView);   createGroupBtn.setManaged(inGroupView); }
+        if (addGroupMemberBtn != null) { addGroupMemberBtn.setVisible(insideGroup); addGroupMemberBtn.setManaged(insideGroup); }
+        if (sortBtn != null) sortBtn.setDisable(inGroupView && currentGroupId == null);
     }
 
     private void syncActiveTabState() {
         if (activeTab == null) return;
-        activeTab.currentPath = currentPath;
-        activeTab.inRecycleBin = inRecycleBin;
-        activeTab.inSharedView = inSharedView;
-        activeTab.inGroupView = inGroupView;
-        activeTab.currentGroupId = currentGroupId;
+        activeTab.currentPath      = currentPath;
+        activeTab.inRecycleBin     = inRecycleBin;
+        activeTab.inSharedView     = inSharedView;
+        activeTab.inGroupView      = inGroupView;
+        activeTab.currentGroupId   = currentGroupId;
         activeTab.currentGroupName = currentGroupName;
         activeTab.currentGroupPath = currentGroupPath;
-        activeTab.allItems = allItems;
+        activeTab.allItems         = allItems;
     }
 
+    // =========================================================================
+    //  GROUPS
+    // =========================================================================
+
     private void refreshGroupView() {
-        if (currentGroupId == null) refreshGroups();
-        else refreshGroupFiles();
+        if (currentGroupId == null) refreshGroups(); else refreshGroupFiles();
     }
 
     private void refreshGroups() {
@@ -309,9 +363,7 @@ public class DashboardController {
             pathLabel.setText("/ Groups");
             statusLabel.setText(allItems.isEmpty() ? "No groups yet." : allItems.size() + " group(s)");
             syncActiveTabState();
-        } catch (Exception e) {
-            statusLabel.setText("Error: " + e.getMessage());
-        }
+        } catch (Exception e) { statusLabel.setText("Error: " + e.getMessage()); }
         showNoPreview("Select a group or file.");
         loadBookmarksBar();
         updateActionButtons();
@@ -331,88 +383,66 @@ public class DashboardController {
             for (String f : result.files) {
                 String sz = idx < result.sizes.size() ? result.sizes.get(idx) : "—";
                 String dt = idx < result.dates.size() ? result.dates.get(idx) : "—";
-                allItems.add(new FileItem("📄  " + f, f, false, sz, dt));
+                allItems.add(new FileItem(iconFor(f) + "  " + f, f, false, sz, dt));
                 idx++;
             }
             if (activeTab != null) activeTab.tableView.setItems(FXCollections.observableArrayList(allItems));
-            String pretty = currentGroupPath == null || currentGroupPath.isEmpty()
+            String pretty = (currentGroupPath == null || currentGroupPath.isEmpty())
                     ? currentGroupName
                     : currentGroupName + " / " + currentGroupPath.replace("/", " / ");
             pathLabel.setText("/ Groups / " + pretty);
             statusLabel.setText(allItems.isEmpty() ? "This group folder is empty."
                     : result.folders.size() + " folder(s)  •  " + result.files.size() + " file(s)");
             syncActiveTabState();
-        } catch (Exception e) {
-            statusLabel.setText("Error: " + e.getMessage());
-        }
+        } catch (Exception e) { statusLabel.setText("Error: " + e.getMessage()); }
         loadBookmarksBar();
         applySorting();
         updateActionButtons();
     }
 
-    // ===================== BOOKMARKS =====================
+    // =========================================================================
+    //  BOOKMARKS
+    // =========================================================================
 
     private void loadBookmarksBar() {
         bookmarkButtonsBox.getChildren().clear();
-
         if (inGroupView) {
             Label hint = new Label("Bookmarks are available only in My Files.");
             hint.setStyle("-fx-text-fill: rgba(0,212,255,0.3); -fx-font-size: 10px; -fx-font-family: 'Courier New';");
             bookmarkButtonsBox.getChildren().add(hint);
             return;
         }
-
         List<BookmarkManager.Bookmark> allBookmarks = BookmarkManager.loadBookmarks(username);
-
         List<BookmarkManager.Bookmark> filtered = new ArrayList<>();
         for (BookmarkManager.Bookmark bm : allBookmarks) {
-            String parentPath = bm.path.contains("/") ?
-                    bm.path.substring(0, bm.path.lastIndexOf("/")) : "";
+            String parentPath = bm.path.contains("/") ? bm.path.substring(0, bm.path.lastIndexOf("/")) : "";
             if (parentPath.equals(currentPath)) filtered.add(bm);
         }
-
         for (BookmarkManager.Bookmark bm : filtered) {
             Button btn = new Button(bm.getDisplayName());
-            btn.setStyle(
-                    "-fx-background-color: rgba(0,212,255,0.08);" +
-                            "-fx-text-fill: rgba(255,255,255,0.8); -fx-font-size: 11px;" +
-                            "-fx-font-family: 'Courier New'; -fx-cursor: hand;" +
-                            "-fx-background-radius: 5; -fx-padding: 3 10 3 10;" +
-                            "-fx-border-color: rgba(0,212,255,0.2); -fx-border-width: 1;" +
-                            "-fx-border-radius: 5;");
-
+            btn.setStyle("-fx-background-color: rgba(0,212,255,0.08);" +
+                    "-fx-text-fill: rgba(255,255,255,0.8); -fx-font-size: 11px;" +
+                    "-fx-font-family: 'Courier New'; -fx-cursor: hand;" +
+                    "-fx-background-radius: 5; -fx-padding: 3 10 3 10;" +
+                    "-fx-border-color: rgba(0,212,255,0.2); -fx-border-width: 1; -fx-border-radius: 5;");
             btn.setOnAction(e -> {
                 inRecycleBin = false; inSharedView = false; inGroupView = false;
                 currentGroupId = null; currentGroupName = null; currentGroupPath = "";
                 currentPath = bm.isFolder ? bm.path :
                         (bm.path.contains("/") ? bm.path.substring(0, bm.path.lastIndexOf("/")) : "");
-                if (activeTab != null) {
-                    activeTab.currentPath = currentPath;
-                    activeTab.inRecycleBin = false;
-                    activeTab.inSharedView = false;
-                    activeTab.inGroupView = false;
-                }
-                updateNavigationStyles();
-                updateActionButtons();
-                refreshFileList();
+                if (activeTab != null) { activeTab.currentPath = currentPath; activeTab.inRecycleBin = false; activeTab.inSharedView = false; activeTab.inGroupView = false; }
+                updateNavigationStyles(); updateActionButtons(); refreshFileList();
                 statusLabel.setText("⭐ Jumped to: " + bm.name);
             });
-
             btn.setOnContextMenuRequested(e -> {
                 ContextMenu menu = new ContextMenu();
                 MenuItem remove = new MenuItem("✕ Remove Bookmark");
-                remove.setOnAction(ev -> {
-                    BookmarkManager.deleteBookmark(username, bm.path);
-                    loadBookmarksBar();
-                    statusLabel.setText("Bookmark removed: " + bm.name);
-                });
+                remove.setOnAction(ev -> { BookmarkManager.deleteBookmark(username, bm.path); loadBookmarksBar(); statusLabel.setText("Bookmark removed: " + bm.name); });
                 menu.getItems().add(remove);
                 menu.show(btn, e.getScreenX(), e.getScreenY());
             });
-
             bookmarkButtonsBox.getChildren().add(btn);
         }
-
         if (filtered.isEmpty()) {
             Label hint = new Label("No bookmarks here — select a file or folder and click + Bookmark");
             hint.setStyle("-fx-text-fill: rgba(0,212,255,0.3); -fx-font-size: 10px; -fx-font-family: 'Courier New';");
@@ -422,40 +452,27 @@ public class DashboardController {
 
     @FXML
     private void handleAddBookmark() {
-        if (inGroupView) {
-            statusLabel.setText("Bookmarks are only for My Files.");
-            return;
-        }
+        if (inGroupView) { statusLabel.setText("Bookmarks are only for My Files."); return; }
         if (activeTab == null) return;
         FileItem selected = activeTab.tableView.getSelectionModel().getSelectedItem();
-        String name, path;
-        boolean isFolder;
-
+        String name, path; boolean isFolder;
         if (selected != null) {
             name = selected.getRawName();
             path = currentPath.isEmpty() ? name : currentPath + "/" + name;
             isFolder = selected.isFolder();
         } else if (!currentPath.isEmpty()) {
-            name = currentPath.contains("/") ?
-                    currentPath.substring(currentPath.lastIndexOf("/") + 1) : currentPath;
-            path = currentPath;
-            isFolder = true;
-        } else {
-            statusLabel.setText("Select a file or folder to bookmark.");
-            return;
-        }
-
-        if (BookmarkManager.isBookmarked(username, path)) {
-            statusLabel.setText("Already bookmarked: " + name);
-            return;
-        }
-
+            name = currentPath.contains("/") ? currentPath.substring(currentPath.lastIndexOf("/") + 1) : currentPath;
+            path = currentPath; isFolder = true;
+        } else { statusLabel.setText("Select a file or folder to bookmark."); return; }
+        if (BookmarkManager.isBookmarked(username, path)) { statusLabel.setText("Already bookmarked: " + name); return; }
         BookmarkManager.saveBookmark(username, new BookmarkManager.Bookmark(name, path, isFolder));
         loadBookmarksBar();
         statusLabel.setText("⭐ Bookmarked: " + name);
     }
 
-    // ===================== SORTING =====================
+    // =========================================================================
+    //  SORTING
+    // =========================================================================
 
     @FXML
     private void handleSort() {
@@ -475,7 +492,7 @@ public class DashboardController {
         java.util.Comparator<FileItem> comparator = switch (sortColumn) {
             case "size" -> java.util.Comparator.comparing(FileItem::getSize);
             case "date" -> java.util.Comparator.comparing(FileItem::getDate);
-            default -> java.util.Comparator.comparing(item -> item.getRawName().toLowerCase());
+            default     -> java.util.Comparator.comparing(item -> item.getRawName().toLowerCase());
         };
         if (!sortAscending) comparator = comparator.reversed();
         java.util.Comparator<FileItem> fc = comparator;
@@ -489,13 +506,13 @@ public class DashboardController {
         activeTab.tableView.setItems(FXCollections.observableArrayList(sorted));
     }
 
-    // ===================== VIDEO PLAYER =====================
+    // =========================================================================
+    //  VIDEO PLAYER
+    // =========================================================================
 
     private void showVideoPlayer(File videoFile, String filename) {
-        fileView.setVisible(false);   fileView.setManaged(false);
-        searchBar.setVisible(false);  searchBar.setManaged(false);
-        actionBar.setVisible(false);  actionBar.setManaged(false);
-        videoView.setVisible(true);   videoView.setManaged(true);
+        hideFileBrowserForViewer();
+        videoView.setVisible(true); videoView.setManaged(true);
         videoTitleLabel.setText(filename);
         statusLabel.setText("Loading: " + filename);
 
@@ -547,7 +564,7 @@ public class DashboardController {
                 alert.setHeaderText("Cannot play this video inside FileVault");
                 alert.setContentText("Format may not be supported.\n\nError: " + err);
                 ButtonType openExt = new ButtonType("Open with System Player");
-                ButtonType cancel = new ButtonType("Cancel", ButtonBar.ButtonData.CANCEL_CLOSE);
+                ButtonType cancel  = new ButtonType("Cancel", ButtonBar.ButtonData.CANCEL_CLOSE);
                 alert.getButtonTypes().setAll(openExt, cancel);
                 alert.showAndWait().ifPresent(r -> {
                     if (r == openExt) { try { java.awt.Desktop.getDesktop().open(videoFile); } catch (Exception ex) { statusLabel.setText("Could not open: " + ex.getMessage()); } }
@@ -563,20 +580,17 @@ public class DashboardController {
         if (mediaPlayer != null) { mediaPlayer.stop(); mediaPlayer.dispose(); mediaPlayer = null; }
         videoPlaying = false; playPauseBtn.setText("▶");
         seekSlider.setValue(0); currentTimeLabel.setText("00:00"); totalTimeLabel.setText("00:00");
-        videoView.setVisible(false); videoView.setManaged(false);
-        fileView.setVisible(true);   fileView.setManaged(true);
-        searchBar.setVisible(true);  searchBar.setManaged(true);
-        actionBar.setVisible(true);  actionBar.setManaged(true);
+        showFileBrowser();
         statusLabel.setText("Back to files.");
     }
 
     @FXML private void handleVideoPlayPause() {
         if (mediaPlayer == null) return;
         if (videoPlaying) { mediaPlayer.pause(); playPauseBtn.setText("▶"); }
-        else { mediaPlayer.play(); playPauseBtn.setText("⏸"); }
+        else              { mediaPlayer.play();  playPauseBtn.setText("⏸"); }
         videoPlaying = !videoPlaying;
     }
-    @FXML private void handleVideoRewind() { if (mediaPlayer != null) mediaPlayer.seek(mediaPlayer.getCurrentTime().subtract(Duration.seconds(10))); }
+    @FXML private void handleVideoRewind()  { if (mediaPlayer != null) mediaPlayer.seek(mediaPlayer.getCurrentTime().subtract(Duration.seconds(10))); }
     @FXML private void handleVideoForward() { if (mediaPlayer != null) mediaPlayer.seek(mediaPlayer.getCurrentTime().add(Duration.seconds(10))); }
     @FXML private void handleVideoMute() {
         if (mediaPlayer == null) return;
@@ -584,37 +598,126 @@ public class DashboardController {
     }
 
     private String formatDuration(Duration d) {
-        int s=(int)d.toSeconds(), h=s/3600, m=(s%3600)/60, sec=s%60;
-        return h>0 ? String.format("%d:%02d:%02d",h,m,sec) : String.format("%02d:%02d",m,sec);
+        int s = (int) d.toSeconds(), h = s / 3600, m = (s % 3600) / 60, sec = s % 60;
+        return h > 0 ? String.format("%d:%02d:%02d", h, m, sec) : String.format("%02d:%02d", m, sec);
     }
 
-    // ===================== FILE LIST =====================
+    // =========================================================================
+    //  IMAGE VIEWER
+    // =========================================================================
+
+    private void showImageViewer(File imageFile, String filename) {
+        if (imageView == null) {
+            // Fallback: show in preview panel
+            try { imagePreview.setImage(new Image(new FileInputStream(imageFile))); imagePreview.setVisible(true); previewLabel.setText(filename); }
+            catch (Exception e) { showNoPreview("Could not display image."); }
+            return;
+        }
+        hideFileBrowserForViewer();
+        imageView.setVisible(true); imageView.setManaged(true);
+        imageTitleLabel.setText(filename);
+        currentImageFile = imageFile;
+        try {
+            Image img = new Image(new FileInputStream(imageFile));
+            imageViewFull.setImage(img);
+            imageViewFull.setPreserveRatio(true);
+            imageViewFull.fitWidthProperty().bind(imageView.widthProperty().subtract(40));
+            imageViewFull.fitHeightProperty().bind(imageView.heightProperty().subtract(120));
+            if (zoomSlider != null) { zoomSlider.setValue(100); zoomLabel.setText("100%"); }
+            statusLabel.setText("🖼 " + filename + "  (" + (int) img.getWidth() + " × " + (int) img.getHeight() + " px)");
+        } catch (Exception e) { statusLabel.setText("Could not display image: " + e.getMessage()); handleBackFromImage(); }
+    }
+
+    private void applyZoom(double percent) {
+        if (imageViewFull == null || currentImageFile == null) return;
+        imageViewFull.fitWidthProperty().unbind();
+        imageViewFull.fitHeightProperty().unbind();
+        double base = 600;
+        imageViewFull.setFitWidth(base * percent / 100.0);
+        imageViewFull.setFitHeight(base * percent / 100.0);
+    }
+
+    @FXML private void handleBackFromImage() {
+        currentImageFile = null;
+        if (imageViewFull != null) { imageViewFull.fitWidthProperty().unbind(); imageViewFull.fitHeightProperty().unbind(); imageViewFull.setImage(null); }
+        showFileBrowser();
+        statusLabel.setText("Back to files.");
+    }
+
+    @FXML private void handleZoomIn()    { if (zoomSlider != null) zoomSlider.setValue(Math.min(400, zoomSlider.getValue() + 25)); }
+    @FXML private void handleZoomOut()   { if (zoomSlider != null) zoomSlider.setValue(Math.max(10,  zoomSlider.getValue() - 25)); }
+    @FXML private void handleZoomReset() { if (zoomSlider != null) zoomSlider.setValue(100); }
+
+    @FXML private void handleOpenImageExternal() {
+        if (currentImageFile != null) { try { java.awt.Desktop.getDesktop().open(currentImageFile); } catch (Exception e) { statusLabel.setText("Could not open: " + e.getMessage()); } }
+    }
+
+    // =========================================================================
+    //  PDF VIEWER
+    // =========================================================================
+
+    private void showPdfViewer(File pdfFile, String filename) {
+        if (pdfView == null || pdfWebView == null) {
+            // Fallback: open with system app
+            try { java.awt.Desktop.getDesktop().open(pdfFile); statusLabel.setText("Opened PDF: " + filename); }
+            catch (Exception e) { statusLabel.setText("Cannot open PDF: " + e.getMessage()); }
+            return;
+        }
+        hideFileBrowserForViewer();
+        pdfView.setVisible(true); pdfView.setManaged(true);
+        pdfTitleLabel.setText(filename);
+        currentPdfFile = pdfFile;
+        pdfWebView.getEngine().load(pdfFile.toURI().toString());
+        statusLabel.setText("📄 " + filename);
+    }
+
+    @FXML private void handleBackFromPdf() {
+        if (pdfWebView != null) pdfWebView.getEngine().load("about:blank");
+        currentPdfFile = null;
+        showFileBrowser();
+        statusLabel.setText("Back to files.");
+    }
+
+    @FXML private void handleOpenPdfExternal() {
+        if (currentPdfFile != null) { try { java.awt.Desktop.getDesktop().open(currentPdfFile); } catch (Exception e) { statusLabel.setText("Could not open: " + e.getMessage()); } }
+    }
+
+    // =========================================================================
+    //  FILE LIST
+    // =========================================================================
+
+    /** Returns the right emoji icon for a file based on its extension */
+    private String iconFor(String filename) {
+        String ext = getExtension(filename);
+        if (IMAGE_EXTENSIONS.contains(ext)) return "🖼";
+        if (VIDEO_EXTENSIONS.contains(ext)) return "🎬";
+        if (PDF_EXTENSIONS.contains(ext))   return "📕";
+        return "📄";
+    }
 
     private void refreshFileList() {
         try {
             NetworkManager.ListResult result = network.listDir(currentPath);
             allItems = new ArrayList<>();
-            int si=0, di=0;
+            int i = 0;
             for (String f : result.folders) {
-                String sz=si<result.sizes.size()?result.sizes.get(si++):"—";
-                String dt=di<result.dates.size()?result.dates.get(di++):"—";
-                allItems.add(new FileItem("📁  "+f, f, true, sz, dt));
+                String sz = i < result.sizes.size() ? result.sizes.get(i) : "—";
+                String dt = i < result.dates.size() ? result.dates.get(i) : "—";
+                allItems.add(new FileItem("📁  " + f, f, true, sz, dt));
+                i++;
             }
             for (String f : result.files) {
-                String sz=si<result.sizes.size()?result.sizes.get(si++):"—";
-                String dt=di<result.dates.size()?result.dates.get(di++):"—";
-                allItems.add(new FileItem("📄  "+f, f, false, sz, dt));
+                String sz = i < result.sizes.size() ? result.sizes.get(i) : "—";
+                String dt = i < result.dates.size() ? result.dates.get(i) : "—";
+                allItems.add(new FileItem(iconFor(f) + "  " + f, f, false, sz, dt));
+                i++;
             }
-            if (activeTab != null) {
-                activeTab.currentPath = currentPath;
-                activeTab.allItems = allItems;
-                activeTab.tableView.setItems(FXCollections.observableArrayList(allItems));
-            }
+            if (activeTab != null) { activeTab.currentPath = currentPath; activeTab.allItems = allItems; activeTab.tableView.setItems(FXCollections.observableArrayList(allItems)); }
             syncActiveTabState();
-            pathLabel.setText("/ "+(currentPath.isEmpty()?"Home":currentPath.replace("/"," / ")));
-            statusLabel.setText(allItems.isEmpty()?"This folder is empty.":
-                    result.folders.size()+" folder(s)  •  "+result.files.size()+" file(s)");
-        } catch (Exception e) { statusLabel.setText("Error: "+e.getMessage()); }
+            pathLabel.setText("/ " + (currentPath.isEmpty() ? "Home" : currentPath.replace("/", " / ")));
+            statusLabel.setText(allItems.isEmpty() ? "This folder is empty." :
+                    result.folders.size() + " folder(s)  •  " + result.files.size() + " file(s)");
+        } catch (Exception e) { statusLabel.setText("Error: " + e.getMessage()); }
         loadBookmarksBar();
         applySorting();
     }
@@ -624,13 +727,13 @@ public class DashboardController {
             List<String> binFiles = network.listBin();
             allItems = new ArrayList<>();
             for (String r : binFiles) {
-                String dn=r.contains("##")?r.substring(r.lastIndexOf("##")+2):r;
-                allItems.add(new FileItem("🗑  "+dn, r, false, "—", "—"));
+                String dn = r.contains("##") ? r.substring(r.lastIndexOf("##") + 2) : r;
+                allItems.add(new FileItem("🗑  " + dn, r, false, "—", "—"));
             }
-            if (activeTab != null) { activeTab.allItems=allItems; activeTab.tableView.setItems(FXCollections.observableArrayList(allItems)); }
+            if (activeTab != null) { activeTab.allItems = allItems; activeTab.tableView.setItems(FXCollections.observableArrayList(allItems)); }
             syncActiveTabState();
-            statusLabel.setText(allItems.isEmpty()?"Recycle Bin is empty.":allItems.size()+" item(s) in Recycle Bin");
-        } catch (Exception e) { statusLabel.setText("Error: "+e.getMessage()); }
+            statusLabel.setText(allItems.isEmpty() ? "Recycle Bin is empty." : allItems.size() + " item(s) in Recycle Bin");
+        } catch (Exception e) { statusLabel.setText("Error: " + e.getMessage()); }
         applySorting();
     }
 
@@ -639,115 +742,79 @@ public class DashboardController {
             List<NetworkManager.SharedFileInfo> sf = network.listSharedWithMe();
             allItems = new ArrayList<>();
             for (NetworkManager.SharedFileInfo s : sf)
-                allItems.add(new FileItem("📤  "+s.filename+"  (from: "+s.sharedBy+")", s.sharedBy+"|"+s.filePath, false, "—", "—"));
-            if (activeTab != null) { activeTab.allItems=allItems; activeTab.tableView.setItems(FXCollections.observableArrayList(allItems)); }
+                allItems.add(new FileItem("📤  " + s.filename + "  (from: " + s.sharedBy + ")", s.sharedBy + "|" + s.filePath, false, "—", "—"));
+            if (activeTab != null) { activeTab.allItems = allItems; activeTab.tableView.setItems(FXCollections.observableArrayList(allItems)); }
             syncActiveTabState();
-            statusLabel.setText(allItems.isEmpty()?"No files shared with you yet.":allItems.size()+" file(s) shared with you.");
-        } catch (Exception e) { statusLabel.setText("Error: "+e.getMessage()); }
+            statusLabel.setText(allItems.isEmpty() ? "No files shared with you yet." : allItems.size() + " file(s) shared with you.");
+        } catch (Exception e) { statusLabel.setText("Error: " + e.getMessage()); }
         applySorting();
     }
 
     @FXML private void handleSearch() {
-        if (activeTab==null) return;
-        String q=searchField.getText().toLowerCase().trim();
+        if (activeTab == null) return;
+        String q = searchField.getText().toLowerCase().trim();
         if (q.isEmpty()) { activeTab.tableView.setItems(FXCollections.observableArrayList(allItems)); return; }
-        List<FileItem> f=new ArrayList<>();
-        for (FileItem i : allItems) if (i.getRawName().toLowerCase().contains(q)) f.add(i);
+        List<FileItem> f = new ArrayList<>();
+        for (FileItem item : allItems) if (item.getRawName().toLowerCase().contains(q)) f.add(item);
         activeTab.tableView.setItems(FXCollections.observableArrayList(f));
-        statusLabel.setText("Found "+f.size()+" result(s) for \""+q+"\"");
+        statusLabel.setText("Found " + f.size() + " result(s) for \"" + q + "\"");
     }
 
-    // ===================== NAV =====================
+    // =========================================================================
+    //  NAV
+    // =========================================================================
 
     @FXML private void handleNavFiles() {
         inRecycleBin=false; inSharedView=false; inGroupView=false;
         currentPath=""; currentGroupId=null; currentGroupName=null; currentGroupPath="";
-        syncActiveTabState();
-        updateNavigationStyles();
-        updateActionButtons();
-        showNoPreview("Select a file to preview");
-        refreshFileList();
+        syncActiveTabState(); updateNavigationStyles(); updateActionButtons();
+        showNoPreview("Select a file to preview"); refreshFileList();
     }
 
     @FXML private void handleNavRecycleBin() {
         inRecycleBin=true; inSharedView=false; inGroupView=false;
         currentGroupId=null; currentGroupName=null; currentGroupPath="";
-        syncActiveTabState();
-        updateNavigationStyles();
-        updateActionButtons();
-        pathLabel.setText("/ Recycle Bin");
-        showNoPreview("Select a file to preview");
-        refreshBin();
+        syncActiveTabState(); updateNavigationStyles(); updateActionButtons();
+        pathLabel.setText("/ Recycle Bin"); showNoPreview("Select a file to preview"); refreshBin();
     }
 
     @FXML private void handleNavShared() {
         inSharedView=true; inRecycleBin=false; inGroupView=false;
         currentGroupId=null; currentGroupName=null; currentGroupPath="";
-        syncActiveTabState();
-        updateNavigationStyles();
-        updateActionButtons();
-        pathLabel.setText("/ Shared with Me");
-        showNoPreview("Select a file to preview");
-        refreshShared();
+        syncActiveTabState(); updateNavigationStyles(); updateActionButtons();
+        pathLabel.setText("/ Shared with Me"); showNoPreview("Select a file to preview"); refreshShared();
     }
 
     @FXML private void handleNavGroups() {
         inGroupView=true; inSharedView=false; inRecycleBin=false;
         currentGroupId=null; currentGroupName=null; currentGroupPath="";
-        syncActiveTabState();
-        updateNavigationStyles();
-        updateActionButtons();
-        refreshGroups();
+        syncActiveTabState(); updateNavigationStyles(); updateActionButtons(); refreshGroups();
     }
 
     @FXML private void handleCreateGroup() {
         TextInputDialog d = new TextInputDialog();
-        d.setTitle("Create Group");
-        d.setHeaderText("Create a new group");
-        d.setContentText("Group name:");
+        d.setTitle("Create Group"); d.setHeaderText("Create a new group"); d.setContentText("Group name:");
         d.showAndWait().ifPresent(name -> {
-            if (name.trim().isEmpty()) {
-                statusLabel.setText("Group name cannot be empty.");
-                return;
-            }
+            if (name.trim().isEmpty()) { statusLabel.setText("Group name cannot be empty."); return; }
             try {
                 String r = network.createGroup(name.trim());
-                if (r.equals("CREATEGROUP_SUCCESS")) {
-                    statusLabel.setText("✅ Group created: " + name.trim());
-                    refreshGroups();
-                } else {
-                    statusLabel.setText("Failed: " + r.replace("ERROR ", ""));
-                }
-            } catch (Exception e) {
-                statusLabel.setText("Error: " + e.getMessage());
-            }
+                if (r.equals("CREATEGROUP_SUCCESS")) { statusLabel.setText("✅ Group created: " + name.trim()); refreshGroups(); }
+                else statusLabel.setText("Failed: " + r.replace("ERROR ", ""));
+            } catch (Exception e) { statusLabel.setText("Error: " + e.getMessage()); }
         });
     }
 
     @FXML private void handleAddGroupMember() {
-        if (!inGroupView || currentGroupId == null) {
-            statusLabel.setText("Open a group first.");
-            return;
-        }
+        if (!inGroupView || currentGroupId == null) { statusLabel.setText("Open a group first."); return; }
         TextInputDialog d = new TextInputDialog();
-        d.setTitle("Add Group Member");
-        d.setHeaderText("Add member to " + currentGroupName);
-        d.setContentText("Username:");
+        d.setTitle("Add Group Member"); d.setHeaderText("Add member to " + currentGroupName); d.setContentText("Username:");
         d.showAndWait().ifPresent(name -> {
-            if (name.trim().isEmpty()) {
-                statusLabel.setText("Username cannot be empty.");
-                return;
-            }
+            if (name.trim().isEmpty()) { statusLabel.setText("Username cannot be empty."); return; }
             try {
                 String r = network.addGroupMember(currentGroupId, name.trim());
-                if (r.equals("ADDGROUPMEMBER_SUCCESS")) {
-                    statusLabel.setText("✅ Added " + name.trim() + " to " + currentGroupName);
-                } else {
-                    statusLabel.setText("Failed: " + r.replace("ERROR ", ""));
-                }
-            } catch (Exception e) {
-                statusLabel.setText("Error: " + e.getMessage());
-            }
+                if (r.equals("ADDGROUPMEMBER_SUCCESS")) statusLabel.setText("✅ Added " + name.trim() + " to " + currentGroupName);
+                else statusLabel.setText("Failed: " + r.replace("ERROR ", ""));
+            } catch (Exception e) { statusLabel.setText("Error: " + e.getMessage()); }
         });
     }
 
@@ -756,449 +823,494 @@ public class DashboardController {
             FXMLLoader loader = new FXMLLoader(getClass().getResource("Admin.fxml"));
             Scene scene = new Scene(loader.load(), 800, 550);
             var css = getClass().getResource("dashboard.css");
-            if (css!=null) scene.getStylesheets().add(css.toExternalForm());
+            if (css != null) scene.getStylesheets().add(css.toExternalForm());
             AdminController c = loader.getController(); c.setNetwork(network);
             Stage s = new Stage(); s.setTitle("FileVault — Admin Panel"); s.setScene(scene); s.show();
-        } catch (Exception e) { statusLabel.setText("Error: "+e.getMessage()); }
+        } catch (Exception e) { statusLabel.setText("Error: " + e.getMessage()); }
     }
 
     @FXML private void handleThemeToggle() {
         Scene scene = welcomeLabel.getScene();
         if (isDarkTheme) { scene.getRoot().getStyleClass().remove("root-dark"); scene.getRoot().getStyleClass().add("root-light"); themeToggleBtn.setText("🌙 Dark Mode"); isDarkTheme=false; }
-        else { scene.getRoot().getStyleClass().remove("root-light"); scene.getRoot().getStyleClass().add("root-dark"); themeToggleBtn.setText("☀ Light Mode"); isDarkTheme=true; }
+        else             { scene.getRoot().getStyleClass().remove("root-light"); scene.getRoot().getStyleClass().add("root-dark"); themeToggleBtn.setText("☀ Light Mode"); isDarkTheme=true; }
     }
 
-    // ===================== FILE CLICK =====================
+    // =========================================================================
+    //  FILE CLICK  (My Files / Shared / Group — all three contexts)
+    // =========================================================================
 
     @FXML private void handleFileClick() {
-        if (activeTab==null) return;
+        if (activeTab == null) return;
         FileItem selected = activeTab.tableView.getSelectionModel().getSelectedItem();
-        if (selected==null) return;
+        if (selected == null) return;
         boolean dc = isDoubleClick();
 
+        // ── GROUP VIEW ────────────────────────────────────────────────────────
         if (inGroupView) {
             if (currentGroupId == null) {
+                // Group list: double-click opens a group
                 if (dc && selected.isFolder()) {
                     NetworkManager.GroupInfo info = null;
-                    try {
-                        for (NetworkManager.GroupInfo g : network.listGroups()) {
-                            if (g.groupId.equals(selected.getRawName())) {
-                                info = g;
-                                break;
-                            }
-                        }
-                    } catch (Exception ignored) {}
-                    currentGroupId = selected.getRawName();
+                    try { for (NetworkManager.GroupInfo g : network.listGroups()) if (g.groupId.equals(selected.getRawName())) { info = g; break; } }
+                    catch (Exception ignored) {}
+                    currentGroupId   = selected.getRawName();
                     currentGroupName = info != null ? info.groupName : "Group";
                     currentGroupPath = "";
-                    syncActiveTabState();
-                    showNoPreview("Select a file to preview");
-                    refreshGroupFiles();
+                    syncActiveTabState(); showNoPreview("Select a file to preview"); refreshGroupFiles();
                 }
                 return;
             }
-
+            // Inside a group
             if (selected.isFolder()) {
                 if (dc) {
                     currentGroupPath = currentGroupPath.isEmpty() ? selected.getRawName() : currentGroupPath + "/" + selected.getRawName();
-                    syncActiveTabState();
-                    showNoPreview("Select a file to preview");
-                    refreshGroupFiles();
+                    syncActiveTabState(); showNoPreview("Select a file to preview"); refreshGroupFiles();
                 }
             } else {
-                String fn = selected.getRawName();
+                String fn  = selected.getRawName();
                 String ext = getExtension(fn);
                 if (dc) {
-                    if (VIDEO_EXTENSIONS.contains(ext)) downloadAndPlayGroupVideo(fn);
-                    else openGroupWithSystemApp(fn);
+                    if      (VIDEO_EXTENSIONS.contains(ext)) downloadAndPlayGroupVideo(fn);
+                    else if (IMAGE_EXTENSIONS.contains(ext)) downloadAndOpenGroupImage(fn);
+                    else if (PDF_EXTENSIONS.contains(ext))   downloadAndOpenGroupPdf(fn);
+                    else                                      openGroupWithSystemApp(fn);
                 } else {
-                    if (IMAGE_EXTENSIONS.contains(ext)) previewGroupImage(fn);
-                    else if (VIDEO_EXTENSIONS.contains(ext)) showNoPreview("🎬 Double click to play video.");
-                    else showNoPreview("Double click to open this file.");
+                    updateSingleClickPreview(ext, fn);
                 }
             }
             return;
         }
 
+        // ── FOLDER ────────────────────────────────────────────────────────────
         if (selected.isFolder()) {
             if (dc) {
-                currentPath = currentPath.isEmpty() ? selected.getRawName() : currentPath+"/"+selected.getRawName();
-                if (activeTab!=null) activeTab.currentPath = currentPath;
+                currentPath = currentPath.isEmpty() ? selected.getRawName() : currentPath + "/" + selected.getRawName();
+                if (activeTab != null) activeTab.currentPath = currentPath;
                 showNoPreview("Select a file to preview"); refreshFileList();
             }
-        } else {
-            if (inSharedView) {
-                String[] p=selected.getRawName().split("\\|");
-                String fp=p[1], fn=fp.contains("/")?fp.substring(fp.lastIndexOf("/")+1):fp, ext=getExtension(fn);
-                if (dc) { if (VIDEO_EXTENSIONS.contains(ext)) downloadAndPlaySharedVideo(selected); else openSharedWithSystemApp(selected); }
-                else { if (IMAGE_EXTENSIONS.contains(ext)) previewSharedImage(selected); else if (VIDEO_EXTENSIONS.contains(ext)) showNoPreview("🎬 Double click to play video."); else showNoPreview("Double click to open this file."); }
-            } else {
-                String fn=selected.getRawName(), ext=getExtension(fn);
-                if (dc) { if (VIDEO_EXTENSIONS.contains(ext)) downloadAndPlayVideo(fn); else openWithSystemApp(fn, ext); }
-                else { if (IMAGE_EXTENSIONS.contains(ext)) previewImage(fn); else if (VIDEO_EXTENSIONS.contains(ext)) showNoPreview("🎬 Double click to play video."); else showNoPreview("Double click to open this file."); }
-            }
+            return;
         }
+
+        // ── SHARED VIEW ───────────────────────────────────────────────────────
+        if (inSharedView) {
+            String[] p  = selected.getRawName().split("\\|", 2);
+            if (p.length < 2) return;
+            String fp   = p[1];
+            String fn   = fp.contains("/") ? fp.substring(fp.lastIndexOf("/") + 1) : fp;
+            String ext  = getExtension(fn);
+            if (dc) {
+                if      (VIDEO_EXTENSIONS.contains(ext)) downloadAndPlaySharedVideo(selected);
+                else if (IMAGE_EXTENSIONS.contains(ext)) downloadAndOpenSharedImage(selected);
+                else if (PDF_EXTENSIONS.contains(ext))   downloadAndOpenSharedPdf(selected);
+                else                                      openSharedWithSystemApp(selected);
+            } else {
+                updateSingleClickPreview(ext, fn);
+            }
+            return;
+        }
+
+        // ── MY FILES ──────────────────────────────────────────────────────────
+        String fn  = selected.getRawName();
+        String ext = getExtension(fn);
+        if (dc) {
+            if      (VIDEO_EXTENSIONS.contains(ext)) downloadAndPlayVideo(fn);
+            else if (IMAGE_EXTENSIONS.contains(ext)) downloadAndOpenImage(fn);
+            else if (PDF_EXTENSIONS.contains(ext))   downloadAndOpenPdf(fn);
+            else                                      openWithSystemApp(fn, ext);
+        } else {
+            if (IMAGE_EXTENSIONS.contains(ext)) previewImage(fn);
+            else updateSingleClickPreview(ext, fn);
+        }
+    }
+
+    private void updateSingleClickPreview(String ext, String filename) {
+        if      (VIDEO_EXTENSIONS.contains(ext)) showNoPreview("🎬 Double-click to play: "      + filename);
+        else if (PDF_EXTENSIONS.contains(ext))   showNoPreview("📕 Double-click to open PDF: "  + filename);
+        else if (IMAGE_EXTENSIONS.contains(ext)) showNoPreview("🖼 Double-click to open image: " + filename);
+        else                                     showNoPreview("Double-click to open: "          + filename);
     }
 
     private boolean isDoubleClick() {
-        long now=System.currentTimeMillis(); boolean d=(now-lastClickTime)<400; lastClickTime=now; return d;
+        long now = System.currentTimeMillis(); boolean d = (now - lastClickTime) < 400; lastClickTime = now; return d;
     }
 
-    // ===================== VIDEO HELPERS =====================
+    // =========================================================================
+    //  DOWNLOAD + OPEN HELPERS  (My Files)
+    // =========================================================================
 
     private void downloadAndPlayVideo(String filename) {
-        String rel=currentPath.isEmpty()?filename:currentPath+"/"+filename;
-        File tmp=new File(new File(System.getProperty("java.io.tmpdir"),"filevault"),filename); tmp.getParentFile().mkdirs();
-        statusLabel.setText("Loading video..."); uploadProgressBar.setProgress(0); uploadProgressBar.setVisible(true); progressLabel.setVisible(true); progressLabel.setText("Loading video... 0%");
-        Thread t=new Thread(()->{
-            try {
-                String r=network.downloadFile(rel,tmp,p->javafx.application.Platform.runLater(()->{uploadProgressBar.setProgress(p);progressLabel.setText("Loading video... "+(int)(p*100)+"%");}));
-                javafx.application.Platform.runLater(()->{uploadProgressBar.setVisible(false);progressLabel.setVisible(false);if(r.equals("DOWNLOAD_SUCCESS"))showVideoPlayer(tmp,filename);else statusLabel.setText("Failed: "+r);});
-            } catch(Exception e){javafx.application.Platform.runLater(()->{uploadProgressBar.setVisible(false);progressLabel.setVisible(false);statusLabel.setText("Error: "+e.getMessage());});}
-        }); t.setDaemon(true); t.start();
+        String rel = currentPath.isEmpty() ? filename : currentPath + "/" + filename;
+        File tmp = tmpFile(filename); showProgress("Loading video...");
+        Thread t = new Thread(() -> { try {
+            String r = network.downloadFile(rel, tmp, p -> javafx.application.Platform.runLater(() -> updateProgress(p, "Loading video...")));
+            javafx.application.Platform.runLater(() -> { hideProgress(); if (r.equals("DOWNLOAD_SUCCESS")) showVideoPlayer(tmp, filename); else statusLabel.setText("Failed: " + r); });
+        } catch (Exception e) { javafx.application.Platform.runLater(() -> { hideProgress(); statusLabel.setText("Error: " + e.getMessage()); }); } });
+        t.setDaemon(true); t.start();
     }
+
+    private void downloadAndOpenImage(String filename) {
+        String rel = currentPath.isEmpty() ? filename : currentPath + "/" + filename;
+        File tmp = tmpFile(filename); showProgress("Loading image...");
+        Thread t = new Thread(() -> { try {
+            String r = network.downloadFile(rel, tmp, p -> javafx.application.Platform.runLater(() -> updateProgress(p, "Loading image...")));
+            javafx.application.Platform.runLater(() -> { hideProgress(); if (r.equals("DOWNLOAD_SUCCESS")) showImageViewer(tmp, filename); else statusLabel.setText("Failed: " + r); });
+        } catch (Exception e) { javafx.application.Platform.runLater(() -> { hideProgress(); statusLabel.setText("Error: " + e.getMessage()); }); } });
+        t.setDaemon(true); t.start();
+    }
+
+    private void downloadAndOpenPdf(String filename) {
+        String rel = currentPath.isEmpty() ? filename : currentPath + "/" + filename;
+        File tmp = tmpFile(filename); showProgress("Loading PDF...");
+        Thread t = new Thread(() -> { try {
+            String r = network.downloadFile(rel, tmp, p -> javafx.application.Platform.runLater(() -> updateProgress(p, "Loading PDF...")));
+            javafx.application.Platform.runLater(() -> { hideProgress(); if (r.equals("DOWNLOAD_SUCCESS")) showPdfViewer(tmp, filename); else statusLabel.setText("Failed: " + r); });
+        } catch (Exception e) { javafx.application.Platform.runLater(() -> { hideProgress(); statusLabel.setText("Error: " + e.getMessage()); }); } });
+        t.setDaemon(true); t.start();
+    }
+
+    // =========================================================================
+    //  DOWNLOAD + OPEN HELPERS  (Shared)
+    // =========================================================================
 
     private void downloadAndPlaySharedVideo(FileItem selected) {
-        String[] p=selected.getRawName().split("\\|"); String owner=p[0],fp=p[1],fn=fp.contains("/")?fp.substring(fp.lastIndexOf("/")+1):fp;
-        File tmp=new File(new File(System.getProperty("java.io.tmpdir"),"filevault"),fn); tmp.getParentFile().mkdirs();
-        statusLabel.setText("Loading video..."); uploadProgressBar.setProgress(0); uploadProgressBar.setVisible(true); progressLabel.setVisible(true); progressLabel.setText("Loading video... 0%");
-        Thread t=new Thread(()->{
-            try {
-                String r=network.downloadSharedFile(owner,fp,tmp,prog->javafx.application.Platform.runLater(()->{uploadProgressBar.setProgress(prog);progressLabel.setText("Loading video... "+(int)(prog*100)+"%");}));
-                javafx.application.Platform.runLater(()->{uploadProgressBar.setVisible(false);progressLabel.setVisible(false);if(r.equals("DOWNLOAD_SUCCESS"))showVideoPlayer(tmp,fn);else statusLabel.setText("Failed: "+r);});
-            } catch(Exception e){javafx.application.Platform.runLater(()->{uploadProgressBar.setVisible(false);progressLabel.setVisible(false);statusLabel.setText("Error: "+e.getMessage());});}
-        }); t.setDaemon(true); t.start();
+        String[] p = selected.getRawName().split("\\|", 2); String owner = p[0], fp = p[1];
+        String fn = fp.contains("/") ? fp.substring(fp.lastIndexOf("/") + 1) : fp;
+        File tmp = tmpFile(fn); showProgress("Loading video...");
+        Thread t = new Thread(() -> { try {
+            String r = network.downloadSharedFile(owner, fp, tmp, prog -> javafx.application.Platform.runLater(() -> updateProgress(prog, "Loading video...")));
+            javafx.application.Platform.runLater(() -> { hideProgress(); if (r.equals("DOWNLOAD_SUCCESS")) showVideoPlayer(tmp, fn); else statusLabel.setText("Failed: " + r); });
+        } catch (Exception e) { javafx.application.Platform.runLater(() -> { hideProgress(); statusLabel.setText("Error: " + e.getMessage()); }); } });
+        t.setDaemon(true); t.start();
     }
 
+    private void downloadAndOpenSharedImage(FileItem selected) {
+        String[] p = selected.getRawName().split("\\|", 2); String owner = p[0], fp = p[1];
+        String fn = fp.contains("/") ? fp.substring(fp.lastIndexOf("/") + 1) : fp;
+        File tmp = tmpFile(fn); showProgress("Loading image...");
+        Thread t = new Thread(() -> { try {
+            String r = network.downloadSharedFile(owner, fp, tmp, prog -> javafx.application.Platform.runLater(() -> updateProgress(prog, "Loading image...")));
+            javafx.application.Platform.runLater(() -> { hideProgress(); if (r.equals("DOWNLOAD_SUCCESS")) showImageViewer(tmp, fn); else statusLabel.setText("Failed: " + r); });
+        } catch (Exception e) { javafx.application.Platform.runLater(() -> { hideProgress(); statusLabel.setText("Error: " + e.getMessage()); }); } });
+        t.setDaemon(true); t.start();
+    }
+
+    private void downloadAndOpenSharedPdf(FileItem selected) {
+        String[] p = selected.getRawName().split("\\|", 2); String owner = p[0], fp = p[1];
+        String fn = fp.contains("/") ? fp.substring(fp.lastIndexOf("/") + 1) : fp;
+        File tmp = tmpFile(fn); showProgress("Loading PDF...");
+        Thread t = new Thread(() -> { try {
+            String r = network.downloadSharedFile(owner, fp, tmp, prog -> javafx.application.Platform.runLater(() -> updateProgress(prog, "Loading PDF...")));
+            javafx.application.Platform.runLater(() -> { hideProgress(); if (r.equals("DOWNLOAD_SUCCESS")) showPdfViewer(tmp, fn); else statusLabel.setText("Failed: " + r); });
+        } catch (Exception e) { javafx.application.Platform.runLater(() -> { hideProgress(); statusLabel.setText("Error: " + e.getMessage()); }); } });
+        t.setDaemon(true); t.start();
+    }
+
+    private void openSharedWithSystemApp(FileItem selected) {
+        String[] p = selected.getRawName().split("\\|", 2); String owner = p[0], fp = p[1];
+        String fn = fp.contains("/") ? fp.substring(fp.lastIndexOf("/") + 1) : fp;
+        File tmp = tmpFile(fn); statusLabel.setText("Opening " + fn + "...");
+        Thread t = new Thread(() -> { try {
+            String r = network.downloadSharedFile(owner, fp, tmp);
+            javafx.application.Platform.runLater(() -> { if (r.equals("DOWNLOAD_SUCCESS")) { try { java.awt.Desktop.getDesktop().open(tmp); statusLabel.setText("Opened: " + fn); } catch (Exception e) { statusLabel.setText("Could not open: " + e.getMessage()); } } else statusLabel.setText("Failed: " + r); });
+        } catch (Exception e) { javafx.application.Platform.runLater(() -> statusLabel.setText("Error: " + e.getMessage())); } });
+        t.setDaemon(true); t.start();
+    }
+
+    // =========================================================================
+    //  DOWNLOAD + OPEN HELPERS  (Group)
+    // =========================================================================
 
     private void downloadAndPlayGroupVideo(String filename) {
         String rel = currentGroupPath.isEmpty() ? filename : currentGroupPath + "/" + filename;
-        File tmp = new File(new File(System.getProperty("java.io.tmpdir"), "filevault"), filename);
-        tmp.getParentFile().mkdirs();
-        statusLabel.setText("Loading video...");
-        uploadProgressBar.setProgress(0);
-        uploadProgressBar.setVisible(true);
-        progressLabel.setVisible(true);
-        progressLabel.setText("Loading video... 0%");
-        Thread t = new Thread(() -> {
-            try {
-                String r = network.downloadGroupFile(currentGroupId, rel, tmp,
-                        p -> javafx.application.Platform.runLater(() -> {
-                            uploadProgressBar.setProgress(p);
-                            progressLabel.setText("Loading video... " + (int) (p * 100) + "%");
-                        }));
-                javafx.application.Platform.runLater(() -> {
-                    uploadProgressBar.setVisible(false);
-                    progressLabel.setVisible(false);
-                    if (r.equals("DOWNLOAD_SUCCESS")) showVideoPlayer(tmp, filename);
-                    else statusLabel.setText("Failed: " + r);
-                });
-            } catch (Exception e) {
-                javafx.application.Platform.runLater(() -> {
-                    uploadProgressBar.setVisible(false);
-                    progressLabel.setVisible(false);
-                    statusLabel.setText("Error: " + e.getMessage());
-                });
-            }
-        });
-        t.setDaemon(true);
-        t.start();
+        File tmp = tmpFile(filename); showProgress("Loading video...");
+        Thread t = new Thread(() -> { try {
+            String r = network.downloadGroupFile(currentGroupId, rel, tmp, p -> javafx.application.Platform.runLater(() -> updateProgress(p, "Loading video...")));
+            javafx.application.Platform.runLater(() -> { hideProgress(); if (r.equals("DOWNLOAD_SUCCESS")) showVideoPlayer(tmp, filename); else statusLabel.setText("Failed: " + r); });
+        } catch (Exception e) { javafx.application.Platform.runLater(() -> { hideProgress(); statusLabel.setText("Error: " + e.getMessage()); }); } });
+        t.setDaemon(true); t.start();
     }
 
-    private void previewGroupImage(String filename) {
-        try {
-            String rel = currentGroupPath.isEmpty() ? filename : currentGroupPath + "/" + filename;
-            File tmp = File.createTempFile("preview_", "." + getExtension(filename));
-            tmp.deleteOnExit();
-            if (network.downloadGroupFile(currentGroupId, rel, tmp).equals("DOWNLOAD_SUCCESS")) {
-                imagePreview.setImage(new Image(new FileInputStream(tmp)));
-                imagePreview.setVisible(true);
-                previewLabel.setText(filename);
-            } else showNoPreview("Could not load preview.");
-        } catch (Exception e) {
-            showNoPreview("Preview error.");
-        }
+    private void downloadAndOpenGroupImage(String filename) {
+        String rel = currentGroupPath.isEmpty() ? filename : currentGroupPath + "/" + filename;
+        File tmp = tmpFile(filename); showProgress("Loading image...");
+        Thread t = new Thread(() -> { try {
+            String r = network.downloadGroupFile(currentGroupId, rel, tmp, p -> javafx.application.Platform.runLater(() -> updateProgress(p, "Loading image...")));
+            javafx.application.Platform.runLater(() -> { hideProgress(); if (r.equals("DOWNLOAD_SUCCESS")) showImageViewer(tmp, filename); else statusLabel.setText("Failed: " + r); });
+        } catch (Exception e) { javafx.application.Platform.runLater(() -> { hideProgress(); statusLabel.setText("Error: " + e.getMessage()); }); } });
+        t.setDaemon(true); t.start();
+    }
+
+    private void downloadAndOpenGroupPdf(String filename) {
+        String rel = currentGroupPath.isEmpty() ? filename : currentGroupPath + "/" + filename;
+        File tmp = tmpFile(filename); showProgress("Loading PDF...");
+        Thread t = new Thread(() -> { try {
+            String r = network.downloadGroupFile(currentGroupId, rel, tmp, p -> javafx.application.Platform.runLater(() -> updateProgress(p, "Loading PDF...")));
+            javafx.application.Platform.runLater(() -> { hideProgress(); if (r.equals("DOWNLOAD_SUCCESS")) showPdfViewer(tmp, filename); else statusLabel.setText("Failed: " + r); });
+        } catch (Exception e) { javafx.application.Platform.runLater(() -> { hideProgress(); statusLabel.setText("Error: " + e.getMessage()); }); } });
+        t.setDaemon(true); t.start();
     }
 
     private void openGroupWithSystemApp(String filename) {
         String rel = currentGroupPath.isEmpty() ? filename : currentGroupPath + "/" + filename;
-        File tmp = new File(new File(System.getProperty("java.io.tmpdir"), "filevault"), filename);
-        tmp.getParentFile().mkdirs();
-        statusLabel.setText("Opening " + filename + "...");
-        Thread t = new Thread(() -> {
-            try {
-                String r = network.downloadGroupFile(currentGroupId, rel, tmp);
-                javafx.application.Platform.runLater(() -> {
-                    if (r.equals("DOWNLOAD_SUCCESS")) {
-                        try {
-                            java.awt.Desktop.getDesktop().open(tmp);
-                            statusLabel.setText("Opened: " + filename);
-                        } catch (Exception e) {
-                            statusLabel.setText("Could not open: " + e.getMessage());
-                        }
-                    } else statusLabel.setText("Failed: " + r);
-                });
-            } catch (Exception e) {
-                javafx.application.Platform.runLater(() -> statusLabel.setText("Error: " + e.getMessage()));
-            }
-        });
-        t.setDaemon(true);
-        t.start();
+        File tmp = tmpFile(filename); statusLabel.setText("Opening " + filename + "...");
+        Thread t = new Thread(() -> { try {
+            String r = network.downloadGroupFile(currentGroupId, rel, tmp);
+            javafx.application.Platform.runLater(() -> { if (r.equals("DOWNLOAD_SUCCESS")) { try { java.awt.Desktop.getDesktop().open(tmp); statusLabel.setText("Opened: " + filename); } catch (Exception e) { statusLabel.setText("Could not open: " + e.getMessage()); } } else statusLabel.setText("Failed: " + r); });
+        } catch (Exception e) { javafx.application.Platform.runLater(() -> statusLabel.setText("Error: " + e.getMessage())); } });
+        t.setDaemon(true); t.start();
     }
 
-    // ===================== IMAGE PREVIEW =====================
+    // =========================================================================
+    //  IMAGE PREVIEW  (sidebar thumbnail — single click)
+    // =========================================================================
 
     private void previewImage(String filename) {
         try {
-            String rel=currentPath.isEmpty()?filename:currentPath+"/"+filename;
-            File tmp=File.createTempFile("preview_","."+getExtension(filename)); tmp.deleteOnExit();
-            if(network.downloadFile(rel,tmp).equals("DOWNLOAD_SUCCESS")){imagePreview.setImage(new Image(new FileInputStream(tmp)));imagePreview.setVisible(true);previewLabel.setText(filename);}
-            else showNoPreview("Could not load preview.");
-        } catch(Exception e){showNoPreview("Preview error.");}
+            String rel = currentPath.isEmpty() ? filename : currentPath + "/" + filename;
+            File tmp = File.createTempFile("preview_", "." + getExtension(filename)); tmp.deleteOnExit();
+            if (network.downloadFile(rel, tmp).equals("DOWNLOAD_SUCCESS")) {
+                imagePreview.setImage(new Image(new FileInputStream(tmp)));
+                imagePreview.setVisible(true); previewLabel.setText(filename);
+            } else showNoPreview("Could not load preview.");
+        } catch (Exception e) { showNoPreview("Preview error."); }
     }
 
-    private void previewSharedImage(FileItem selected) {
-        try {
-            String[] p=selected.getRawName().split("\\|"); String owner=p[0],fp=p[1],fn=fp.contains("/")?fp.substring(fp.lastIndexOf("/")+1):fp;
-            File tmp=File.createTempFile("preview_","."+getExtension(fn)); tmp.deleteOnExit();
-            if(network.downloadSharedFile(owner,fp,tmp).equals("DOWNLOAD_SUCCESS")){imagePreview.setImage(new Image(new FileInputStream(tmp)));imagePreview.setVisible(true);previewLabel.setText(fn);}
-            else showNoPreview("Could not load preview.");
-        } catch(Exception e){showNoPreview("Preview error.");}
-    }
-
-    // ===================== OPEN WITH SYSTEM APP =====================
+    // =========================================================================
+    //  OPEN WITH SYSTEM APP  (My Files)
+    // =========================================================================
 
     private void openWithSystemApp(String filename, String ext) {
-        String rel=currentPath.isEmpty()?filename:currentPath+"/"+filename;
-        File tmp=new File(new File(System.getProperty("java.io.tmpdir"),"filevault"),filename); tmp.getParentFile().mkdirs();
-        statusLabel.setText("Opening "+filename+"...");
-        Thread t=new Thread(()->{
-            try { String r=network.downloadFile(rel,tmp); javafx.application.Platform.runLater(()->{if(r.equals("DOWNLOAD_SUCCESS")){try{java.awt.Desktop.getDesktop().open(tmp);statusLabel.setText("Opened: "+filename);}catch(Exception e){statusLabel.setText("Could not open: "+e.getMessage());}}else statusLabel.setText("Failed: "+r);}); }
-            catch(Exception e){javafx.application.Platform.runLater(()->statusLabel.setText("Error: "+e.getMessage()));}
-        }); t.setDaemon(true); t.start();
+        String rel = currentPath.isEmpty() ? filename : currentPath + "/" + filename;
+        File tmp = tmpFile(filename); statusLabel.setText("Opening " + filename + "...");
+        Thread t = new Thread(() -> { try {
+            String r = network.downloadFile(rel, tmp);
+            javafx.application.Platform.runLater(() -> { if (r.equals("DOWNLOAD_SUCCESS")) { try { java.awt.Desktop.getDesktop().open(tmp); statusLabel.setText("Opened: " + filename); } catch (Exception e) { statusLabel.setText("Could not open: " + e.getMessage()); } } else statusLabel.setText("Failed: " + r); });
+        } catch (Exception e) { javafx.application.Platform.runLater(() -> statusLabel.setText("Error: " + e.getMessage())); } });
+        t.setDaemon(true); t.start();
     }
 
-    private void openSharedWithSystemApp(FileItem selected) {
-        String[] p=selected.getRawName().split("\\|"); String owner=p[0],fp=p[1],fn=fp.contains("/")?fp.substring(fp.lastIndexOf("/")+1):fp;
-        File tmp=new File(new File(System.getProperty("java.io.tmpdir"),"filevault"),fn); tmp.getParentFile().mkdirs();
-        statusLabel.setText("Opening "+fn+"...");
-        Thread t=new Thread(()->{
-            try { String r=network.downloadSharedFile(owner,fp,tmp); javafx.application.Platform.runLater(()->{if(r.equals("DOWNLOAD_SUCCESS")){try{java.awt.Desktop.getDesktop().open(tmp);statusLabel.setText("Opened: "+fn);}catch(Exception e){statusLabel.setText("Could not open: "+e.getMessage());}}else statusLabel.setText("Failed: "+r);}); }
-            catch(Exception e){javafx.application.Platform.runLater(()->statusLabel.setText("Error: "+e.getMessage()));}
-        }); t.setDaemon(true); t.start();
+    // =========================================================================
+    //  PROGRESS HELPERS
+    // =========================================================================
+
+    private void showProgress(String msg) {
+        uploadProgressBar.setProgress(0); uploadProgressBar.setVisible(true); uploadProgressBar.setManaged(true);
+        progressLabel.setVisible(true); progressLabel.setManaged(true); progressLabel.setText(msg);
     }
 
-    // ===================== FILE OPERATIONS =====================
+    private void updateProgress(double p, String prefix) {
+        uploadProgressBar.setProgress(p);
+        progressLabel.setText(prefix + " " + (int)(p * 100) + "%");
+    }
+
+    private void hideProgress() {
+        uploadProgressBar.setVisible(false); uploadProgressBar.setManaged(false);
+        progressLabel.setVisible(false); progressLabel.setManaged(false);
+    }
+
+    /** Convenience: get a temp file in the filevault tmp folder. */
+    private File tmpFile(String filename) {
+        File f = new File(new File(System.getProperty("java.io.tmpdir"), "filevault"), filename);
+        f.getParentFile().mkdirs();
+        return f;
+    }
+
+    // =========================================================================
+    //  FILE OPERATIONS
+    // =========================================================================
 
     @FXML private void handleGoUp() {
         if (inGroupView) {
-            if (currentGroupId == null) {
-                statusLabel.setText("Already at Groups root.");
-                return;
-            }
+            if (currentGroupId == null) { statusLabel.setText("Already at Groups root."); return; }
             if (currentGroupPath == null || currentGroupPath.isEmpty()) {
-                currentGroupId = null;
-                currentGroupName = null;
-                currentGroupPath = "";
-                syncActiveTabState();
-                showNoPreview("Select a group or file.");
-                refreshGroups();
-                return;
+                currentGroupId = null; currentGroupName = null; currentGroupPath = "";
+                syncActiveTabState(); showNoPreview("Select a group or file."); refreshGroups(); return;
             }
             int i = currentGroupPath.lastIndexOf("/");
             currentGroupPath = i == -1 ? "" : currentGroupPath.substring(0, i);
-            syncActiveTabState();
-            showNoPreview("Select a file to preview");
-            refreshGroupFiles();
-            return;
+            syncActiveTabState(); showNoPreview("Select a file to preview"); refreshGroupFiles(); return;
         }
-
-        if(currentPath.isEmpty()){statusLabel.setText("Already at root.");return;}
-        int i=currentPath.lastIndexOf("/"); currentPath=i==-1?"":currentPath.substring(0,i);
-        if(activeTab!=null) activeTab.currentPath=currentPath;
+        if (currentPath.isEmpty()) { statusLabel.setText("Already at root."); return; }
+        int i = currentPath.lastIndexOf("/"); currentPath = i == -1 ? "" : currentPath.substring(0, i);
+        if (activeTab != null) activeTab.currentPath = currentPath;
         showNoPreview("Select a file to preview"); refreshFileList();
     }
 
     @FXML private void handleCreateFolder() {
-        if(inGroupView){statusLabel.setText("Group folder creation is not enabled in this version.");return;}
-        TextInputDialog d=new TextInputDialog(); d.setTitle("New Folder"); d.setHeaderText("Create a new folder"); d.setContentText("Folder name:");
-        d.showAndWait().ifPresent(name->{
-            if(name.trim().isEmpty()){statusLabel.setText("Folder name cannot be empty.");return;}
-            try{String r=network.makeDir(currentPath.isEmpty()?name:currentPath+"/"+name);if(r.equals("MKDIR_SUCCESS")){statusLabel.setText("✅ Folder created: "+name);refreshFileList();}else statusLabel.setText("Failed: "+r);}
-            catch(Exception e){statusLabel.setText("Error: "+e.getMessage());}
+        if (inGroupView) { statusLabel.setText("Group folder creation is not enabled in this version."); return; }
+        TextInputDialog d = new TextInputDialog(); d.setTitle("New Folder"); d.setHeaderText("Create a new folder"); d.setContentText("Folder name:");
+        d.showAndWait().ifPresent(name -> {
+            if (name.trim().isEmpty()) { statusLabel.setText("Folder name cannot be empty."); return; }
+            try { String r = network.makeDir(currentPath.isEmpty() ? name : currentPath + "/" + name); if (r.equals("MKDIR_SUCCESS")) { statusLabel.setText("✅ Folder created: " + name); refreshFileList(); } else statusLabel.setText("Failed: " + r); }
+            catch (Exception e) { statusLabel.setText("Error: " + e.getMessage()); }
         });
     }
 
     @FXML private void handleRename() {
-        if(inGroupView){statusLabel.setText("Rename is available only in My Files.");return;}
-        if(activeTab==null) return;
-        FileItem sel=activeTab.tableView.getSelectionModel().getSelectedItem();
-        if(sel==null){statusLabel.setText("Please select a file or folder to rename.");return;}
-        String old=sel.getRawName(), oldP=currentPath.isEmpty()?old:currentPath+"/"+old;
-        TextInputDialog d=new TextInputDialog(old); d.setTitle("Rename"); d.setHeaderText("Rename "+(sel.isFolder()?"folder":"file")); d.setContentText("New name:");
-        d.showAndWait().ifPresent(newName->{
-            if(newName.trim().isEmpty()){statusLabel.setText("Name cannot be empty.");return;}
-            try{String r=network.renameDir(oldP,currentPath.isEmpty()?newName:currentPath+"/"+newName);if(r.equals("RENAME_SUCCESS")){statusLabel.setText("✅ Renamed to: "+newName);refreshFileList();}else statusLabel.setText("Failed: "+r);}
-            catch(Exception e){statusLabel.setText("Error: "+e.getMessage());}
+        if (inGroupView) { statusLabel.setText("Rename is available only in My Files."); return; }
+        if (activeTab == null) return;
+        FileItem sel = activeTab.tableView.getSelectionModel().getSelectedItem();
+        if (sel == null) { statusLabel.setText("Please select a file or folder to rename."); return; }
+        String old = sel.getRawName(), oldP = currentPath.isEmpty() ? old : currentPath + "/" + old;
+        TextInputDialog d = new TextInputDialog(old); d.setTitle("Rename"); d.setHeaderText("Rename " + (sel.isFolder() ? "folder" : "file")); d.setContentText("New name:");
+        d.showAndWait().ifPresent(newName -> {
+            if (newName.trim().isEmpty()) { statusLabel.setText("Name cannot be empty."); return; }
+            try { String r = network.renameDir(oldP, currentPath.isEmpty() ? newName : currentPath + "/" + newName); if (r.equals("RENAME_SUCCESS")) { statusLabel.setText("✅ Renamed to: " + newName); refreshFileList(); } else statusLabel.setText("Failed: " + r); }
+            catch (Exception e) { statusLabel.setText("Error: " + e.getMessage()); }
         });
     }
 
     @FXML private void handleMoveFile() {
-        if(inGroupView){statusLabel.setText("Move is available only in My Files.");return;}
-        if(activeTab==null) return;
-        List<FileItem> sel=new ArrayList<>(activeTab.tableView.getSelectionModel().getSelectedItems());
-        List<String> files=new ArrayList<>(); for(FileItem i:sel)if(!i.isFolder())files.add(i.getRawName());
-        if(files.isEmpty()){statusLabel.setText("Please select one or more files to move.");return;}
-        TextInputDialog d=new TextInputDialog(); d.setTitle("Move Files"); d.setHeaderText("Move "+files.size()+" file(s)"); d.setContentText("Destination folder:");
-        d.showAndWait().ifPresent(dest->{
-            int ok=0,fail=0;
-            for(String f:files){try{if(network.moveFile(currentPath.isEmpty()?f:currentPath+"/"+f,dest).equals("MOVEFILE_SUCCESS"))ok++;else fail++;}catch(Exception e){fail++;}}
-            statusLabel.setText(fail==0?"✅ Moved "+ok+" file(s) to: "+dest:"Moved "+ok+", failed "+fail); refreshFileList();
+        if (inGroupView) { statusLabel.setText("Move is available only in My Files."); return; }
+        if (activeTab == null) return;
+        List<FileItem> sel = new ArrayList<>(activeTab.tableView.getSelectionModel().getSelectedItems());
+        List<String> files = new ArrayList<>(); for (FileItem i : sel) if (!i.isFolder()) files.add(i.getRawName());
+        if (files.isEmpty()) { statusLabel.setText("Please select one or more files to move."); return; }
+        TextInputDialog d = new TextInputDialog(); d.setTitle("Move Files"); d.setHeaderText("Move " + files.size() + " file(s)"); d.setContentText("Destination folder:");
+        d.showAndWait().ifPresent(dest -> {
+            int ok = 0, fail = 0;
+            for (String f : files) { try { if (network.moveFile(currentPath.isEmpty() ? f : currentPath + "/" + f, dest).equals("MOVEFILE_SUCCESS")) ok++; else fail++; } catch (Exception e) { fail++; } }
+            statusLabel.setText(fail == 0 ? "✅ Moved " + ok + " file(s) to: " + dest : "Moved " + ok + ", failed " + fail); refreshFileList();
         });
     }
 
     @FXML private void handleShare() {
-        if(inGroupView){statusLabel.setText("Group files cannot be shared from here.");return;}
-        if(inRecycleBin||inSharedView){statusLabel.setText("Can only share files from My Files.");return;}
-        if(activeTab==null) return;
-        FileItem sel=activeTab.tableView.getSelectionModel().getSelectedItem();
-        if(sel==null||sel.isFolder()){statusLabel.setText("Please select a file to share.");return;}
-        String fn=sel.getRawName(), fp=currentPath.isEmpty()?fn:currentPath+"/"+fn;
-        TextInputDialog d=new TextInputDialog(); d.setTitle("Share File"); d.setHeaderText("Share \""+fn+"\""); d.setContentText("Enter username:");
-        d.showAndWait().ifPresent(u->{
-            if(u.trim().isEmpty()){statusLabel.setText("Username cannot be empty.");return;}
-            try{String r=network.shareFile(u.trim(),fp);statusLabel.setText(r.equals("SHARE_SUCCESS")?"✅ Shared \""+fn+"\" with "+u:"Failed: "+r.replace("ERROR ",""));}
-            catch(Exception e){statusLabel.setText("Error: "+e.getMessage());}
+        if (inGroupView) { statusLabel.setText("Group files cannot be shared from here."); return; }
+        if (inRecycleBin || inSharedView) { statusLabel.setText("Can only share files from My Files."); return; }
+        if (activeTab == null) return;
+        FileItem sel = activeTab.tableView.getSelectionModel().getSelectedItem();
+        if (sel == null || sel.isFolder()) { statusLabel.setText("Please select a file to share."); return; }
+        String fn = sel.getRawName(), fp = currentPath.isEmpty() ? fn : currentPath + "/" + fn;
+        TextInputDialog d = new TextInputDialog(); d.setTitle("Share File"); d.setHeaderText("Share \"" + fn + "\""); d.setContentText("Enter username:");
+        d.showAndWait().ifPresent(u -> {
+            if (u.trim().isEmpty()) { statusLabel.setText("Username cannot be empty."); return; }
+            try { String r = network.shareFile(u.trim(), fp); statusLabel.setText(r.equals("SHARE_SUCCESS") ? "✅ Shared \"" + fn + "\" with " + u : "Failed: " + r.replace("ERROR ", "")); }
+            catch (Exception e) { statusLabel.setText("Error: " + e.getMessage()); }
         });
     }
 
     @FXML private void handleRefresh() {
-        if(inGroupView)refreshGroupView(); else if(inRecycleBin)refreshBin();else if(inSharedView)refreshShared();else refreshFileList();
+        if (inGroupView) refreshGroupView(); else if (inRecycleBin) refreshBin(); else if (inSharedView) refreshShared(); else refreshFileList();
         statusLabel.setText("✅ Refreshed.");
     }
 
     @FXML private void handleUpload() {
-        if(inGroupView && currentGroupId==null){statusLabel.setText("Open a group first.");return;}
-        FileChooser fc=new FileChooser(); fc.setTitle("Select File to Upload");
-        File f=fc.showOpenDialog((Stage)welcomeLabel.getScene().getWindow());
-        if(f!=null){
-            uploadProgressBar.setProgress(0);uploadProgressBar.setVisible(true);progressLabel.setVisible(true);progressLabel.setText("Uploading... 0%");
-            Thread t=new Thread(()->{
-                try{
-                    String r;
-                    if(inGroupView){
-                        r=network.uploadGroupFile(f,currentGroupId,currentGroupPath,p->javafx.application.Platform.runLater(()->{uploadProgressBar.setProgress(p);progressLabel.setText("Uploading... "+(int)(p*100)+"%");}));
-                    } else {
-                        r=network.uploadFile(f,currentPath,p->javafx.application.Platform.runLater(()->{uploadProgressBar.setProgress(p);progressLabel.setText("Uploading... "+(int)(p*100)+"%");}));
-                    }
-                    javafx.application.Platform.runLater(()->{
-                        uploadProgressBar.setVisible(false);progressLabel.setVisible(false);
-                        if(r.equals("UPLOAD_SUCCESS")||r.equals("UPLOADGROUP_SUCCESS")){
-                            statusLabel.setText("✅ Uploaded: "+f.getName());
-                            if(inGroupView) refreshGroupFiles(); else refreshFileList();
-                        }else statusLabel.setText("Upload failed: "+r);
-                    });
-                }catch(Exception e){javafx.application.Platform.runLater(()->{uploadProgressBar.setVisible(false);progressLabel.setVisible(false);statusLabel.setText("Error: "+e.getMessage());});}
-            });t.setDaemon(true);t.start();
+        if (inGroupView && currentGroupId == null) { statusLabel.setText("Open a group first."); return; }
+        FileChooser fc = new FileChooser(); fc.setTitle("Select File to Upload");
+        File f = fc.showOpenDialog((Stage) welcomeLabel.getScene().getWindow());
+        if (f != null) {
+            showProgress("Uploading...");
+            Thread t = new Thread(() -> { try {
+                String r = inGroupView
+                        ? network.uploadGroupFile(f, currentGroupId, currentGroupPath, p -> javafx.application.Platform.runLater(() -> updateProgress(p, "Uploading...")))
+                        : network.uploadFile(f, currentPath, p -> javafx.application.Platform.runLater(() -> updateProgress(p, "Uploading...")));
+                javafx.application.Platform.runLater(() -> {
+                    hideProgress();
+                    if (r.equals("UPLOAD_SUCCESS") || r.equals("UPLOADGROUP_SUCCESS")) { statusLabel.setText("✅ Uploaded: " + f.getName()); if (inGroupView) refreshGroupFiles(); else refreshFileList(); }
+                    else statusLabel.setText("Upload failed: " + r);
+                });
+            } catch (Exception e) { javafx.application.Platform.runLater(() -> { hideProgress(); statusLabel.setText("Error: " + e.getMessage()); }); } });
+            t.setDaemon(true); t.start();
         }
     }
 
     @FXML private void handleDownload() {
-        if(activeTab==null) return;
-        FileItem sel=activeTab.tableView.getSelectionModel().getSelectedItem();
-        if(sel==null||sel.isFolder()){statusLabel.setText("Please select a file to download.");return;}
-        String fn,ext,owner=null,fp=null,rel=null;
-        if(inSharedView){
-            String[] p=sel.getRawName().split("\\|");owner=p[0];fp=p[1];fn=fp.contains("/")?fp.substring(fp.lastIndexOf("/")+1):fp;ext=getExtension(fn);
-        } else if(inGroupView){
-            fn=sel.getRawName(); rel=currentGroupPath.isEmpty()?fn:currentGroupPath+"/"+fn; ext=getExtension(fn);
-        } else {
-            fn=sel.getRawName();rel=currentPath.isEmpty()?fn:currentPath+"/"+fn;ext=getExtension(fn);
-        }
-        FileChooser fc=new FileChooser();fc.setTitle("Save File As");fc.setInitialFileName(fn);
-        if(!ext.isEmpty())fc.getExtensionFilters().add(new FileChooser.ExtensionFilter(ext.toUpperCase()+" files","*."+ext));
-        fc.getExtensionFilters().add(new FileChooser.ExtensionFilter("All files","*.*"));
-        File saveTo=fc.showSaveDialog((Stage)welcomeLabel.getScene().getWindow());
-        if(saveTo==null)return;
-        if(!ext.isEmpty()&&!saveTo.getAbsolutePath().endsWith("."+ext))saveTo=new File(saveTo.getAbsolutePath()+"."+ext);
-        final File fSave=saveTo;final String fFn=fn,fOwner=owner,fFp=fp,fRel=rel;
-        uploadProgressBar.setProgress(0);uploadProgressBar.setVisible(true);progressLabel.setVisible(true);progressLabel.setText("Downloading... 0%");
-        Thread t=new Thread(()->{
-            try{
-                String r=inSharedView?network.downloadSharedFile(fOwner,fFp,fSave,p->javafx.application.Platform.runLater(()->{uploadProgressBar.setProgress(p);progressLabel.setText("Downloading... "+(int)(p*100)+"%");}))
-                        :(inGroupView?network.downloadGroupFile(currentGroupId,fRel,fSave,p->javafx.application.Platform.runLater(()->{uploadProgressBar.setProgress(p);progressLabel.setText("Downloading... "+(int)(p*100)+"%");}))
-                        :network.downloadFile(fRel,fSave,p->javafx.application.Platform.runLater(()->{uploadProgressBar.setProgress(p);progressLabel.setText("Downloading... "+(int)(p*100)+"%");})));
-                javafx.application.Platform.runLater(()->{uploadProgressBar.setVisible(false);progressLabel.setVisible(false);statusLabel.setText(r.equals("DOWNLOAD_SUCCESS")?"✅ Downloaded: "+fFn:"Download failed: "+r);});
-            }catch(Exception e){javafx.application.Platform.runLater(()->{uploadProgressBar.setVisible(false);progressLabel.setVisible(false);statusLabel.setText("Error: "+e.getMessage());});}
-        });t.setDaemon(true);t.start();
+        if (activeTab == null) return;
+        FileItem sel = activeTab.tableView.getSelectionModel().getSelectedItem();
+        if (sel == null || sel.isFolder()) { statusLabel.setText("Please select a file to download."); return; }
+        String fn, ext, owner = null, fp = null, rel = null;
+        if (inSharedView) { String[] p = sel.getRawName().split("\\|", 2); owner = p[0]; fp = p[1]; fn = fp.contains("/") ? fp.substring(fp.lastIndexOf("/") + 1) : fp; ext = getExtension(fn); }
+        else if (inGroupView) { fn = sel.getRawName(); rel = currentGroupPath.isEmpty() ? fn : currentGroupPath + "/" + fn; ext = getExtension(fn); }
+        else { fn = sel.getRawName(); rel = currentPath.isEmpty() ? fn : currentPath + "/" + fn; ext = getExtension(fn); }
+        FileChooser fc = new FileChooser(); fc.setTitle("Save File As"); fc.setInitialFileName(fn);
+        if (!ext.isEmpty()) fc.getExtensionFilters().add(new FileChooser.ExtensionFilter(ext.toUpperCase() + " files", "*." + ext));
+        fc.getExtensionFilters().add(new FileChooser.ExtensionFilter("All files", "*.*"));
+        File saveTo = fc.showSaveDialog((Stage) welcomeLabel.getScene().getWindow());
+        if (saveTo == null) return;
+        if (!ext.isEmpty() && !saveTo.getAbsolutePath().endsWith("." + ext)) saveTo = new File(saveTo.getAbsolutePath() + "." + ext);
+        final File fSave = saveTo; final String fFn = fn, fOwner = owner, fFp = fp, fRel = rel;
+        showProgress("Downloading...");
+        Thread t = new Thread(() -> { try {
+            String r = inSharedView
+                    ? network.downloadSharedFile(fOwner, fFp, fSave, p -> javafx.application.Platform.runLater(() -> updateProgress(p, "Downloading...")))
+                    : (inGroupView
+                    ? network.downloadGroupFile(currentGroupId, fRel, fSave, p -> javafx.application.Platform.runLater(() -> updateProgress(p, "Downloading...")))
+                    : network.downloadFile(fRel, fSave, p -> javafx.application.Platform.runLater(() -> updateProgress(p, "Downloading..."))));
+            javafx.application.Platform.runLater(() -> { hideProgress(); statusLabel.setText(r.equals("DOWNLOAD_SUCCESS") ? "✅ Downloaded: " + fFn : "Download failed: " + r); });
+        } catch (Exception e) { javafx.application.Platform.runLater(() -> { hideProgress(); statusLabel.setText("Error: " + e.getMessage()); }); } });
+        t.setDaemon(true); t.start();
     }
 
     @FXML private void handleDelete() {
-        if(activeTab==null) return;
-        FileItem sel=activeTab.tableView.getSelectionModel().getSelectedItem();
-        if(sel==null){statusLabel.setText("Please select a file or folder to delete.");return;}
-        if(inRecycleBin){
-            Alert a=new Alert(Alert.AlertType.CONFIRMATION);a.setTitle("Recycle Bin");a.setHeaderText("What do you want to do?");a.setContentText("File: "+sel.getDisplayName());
-            ButtonType restore=new ButtonType("♻ Restore"),del=new ButtonType("🗑 Delete Forever"),cancel=new ButtonType("Cancel",ButtonBar.ButtonData.CANCEL_CLOSE);
-            a.getButtonTypes().setAll(restore,del,cancel);
-            a.showAndWait().ifPresent(r->{try{
-                if(r==restore){String res=network.restoreFile(sel.getRawName());statusLabel.setText(res.equals("RESTORE_SUCCESS")?"✅ Restored: "+sel.getDisplayName():"Failed: "+res);if(res.equals("RESTORE_SUCCESS"))refreshBin();}
-                else if(r==del){String res=network.permanentDelete(sel.getRawName());statusLabel.setText(res.equals("PERMANENTDELETE_SUCCESS")?"🗑 Permanently deleted.":"Failed: "+res);if(res.equals("PERMANENTDELETE_SUCCESS"))refreshBin();}
-            }catch(Exception e){statusLabel.setText("Error: "+e.getMessage());}});
-        } else if(inSharedView){
+        if (activeTab == null) return;
+        FileItem sel = activeTab.tableView.getSelectionModel().getSelectedItem();
+        if (sel == null) { statusLabel.setText("Please select a file or folder to delete."); return; }
+        if (inRecycleBin) {
+            Alert a = new Alert(Alert.AlertType.CONFIRMATION); a.setTitle("Recycle Bin"); a.setHeaderText("What do you want to do?"); a.setContentText("File: " + sel.getDisplayName());
+            ButtonType restore = new ButtonType("♻ Restore"), del = new ButtonType("🗑 Delete Forever"), cancel = new ButtonType("Cancel", ButtonBar.ButtonData.CANCEL_CLOSE);
+            a.getButtonTypes().setAll(restore, del, cancel);
+            a.showAndWait().ifPresent(r -> { try {
+                if (r == restore) { String res = network.restoreFile(sel.getRawName()); statusLabel.setText(res.equals("RESTORE_SUCCESS") ? "✅ Restored: " + sel.getDisplayName() : "Failed: " + res); if (res.equals("RESTORE_SUCCESS")) refreshBin(); }
+                else if (r == del) { String res = network.permanentDelete(sel.getRawName()); statusLabel.setText(res.equals("PERMANENTDELETE_SUCCESS") ? "🗑 Permanently deleted." : "Failed: " + res); if (res.equals("PERMANENTDELETE_SUCCESS")) refreshBin(); }
+            } catch (Exception e) { statusLabel.setText("Error: " + e.getMessage()); } });
+        } else if (inSharedView) {
             statusLabel.setText("Cannot delete shared files.");
-        } else if(inGroupView){
-            if(sel.isFolder()){statusLabel.setText("Group folders cannot be deleted from here.");return;}
-            String name=sel.getRawName(), path=currentGroupPath.isEmpty()?name:currentGroupPath+"/"+name;
-            Alert a=new Alert(Alert.AlertType.CONFIRMATION);a.setTitle("Delete Group File");a.setHeaderText("Delete this file from the group?");a.setContentText("\""+name+"\" will be removed for all group members.");
-            a.showAndWait().ifPresent(r->{if(r==ButtonType.OK){try{
-                String res=network.deleteGroupFile(currentGroupId,path);
-                if(res.equals("DELETEGROUPFILE_SUCCESS")){statusLabel.setText("🗑 Deleted from group: "+name);showNoPreview("Select a file to preview");refreshGroupFiles();}
-                else statusLabel.setText("Failed: "+res);
-            }catch(Exception e){statusLabel.setText("Error: "+e.getMessage());}}});
+        } else if (inGroupView) {
+            if (sel.isFolder()) { statusLabel.setText("Group folders cannot be deleted from here."); return; }
+            String name = sel.getRawName(), path = currentGroupPath.isEmpty() ? name : currentGroupPath + "/" + name;
+            Alert a = new Alert(Alert.AlertType.CONFIRMATION); a.setTitle("Delete Group File"); a.setHeaderText("Delete this file from the group?"); a.setContentText("\"" + name + "\" will be removed for all group members.");
+            a.showAndWait().ifPresent(r -> { if (r == ButtonType.OK) { try {
+                String res = network.deleteGroupFile(currentGroupId, path);
+                if (res.equals("DELETEGROUPFILE_SUCCESS")) { statusLabel.setText("🗑 Deleted from group: " + name); showNoPreview("Select a file to preview"); refreshGroupFiles(); }
+                else statusLabel.setText("Failed: " + res);
+            } catch (Exception e) { statusLabel.setText("Error: " + e.getMessage()); } } });
         } else {
-            String name=sel.getRawName(),path=currentPath.isEmpty()?name:currentPath+"/"+name;
-            Alert a=new Alert(Alert.AlertType.CONFIRMATION);a.setTitle("Delete");a.setHeaderText("Move to Recycle Bin?");a.setContentText("\""+name+"\" will be moved to the Recycle Bin.");
-            a.showAndWait().ifPresent(r->{if(r==ButtonType.OK){try{
-                String res=sel.isFolder()?network.deleteDir(path):network.deleteFile(path);
-                if(res.equals("DELETE_SUCCESS")||res.equals("DELETEDIR_SUCCESS")){statusLabel.setText("🗑 Moved to Recycle Bin: "+name);showNoPreview("Select a file to preview");refreshFileList();}
-                else statusLabel.setText("Failed: "+res);
-            }catch(Exception e){statusLabel.setText("Error: "+e.getMessage());}}});
+            String name = sel.getRawName(), path = currentPath.isEmpty() ? name : currentPath + "/" + name;
+            Alert a = new Alert(Alert.AlertType.CONFIRMATION); a.setTitle("Delete"); a.setHeaderText("Move to Recycle Bin?"); a.setContentText("\"" + name + "\" will be moved to the Recycle Bin.");
+            a.showAndWait().ifPresent(r -> { if (r == ButtonType.OK) { try {
+                String res = sel.isFolder() ? network.deleteDir(path) : network.deleteFile(path);
+                if (res.equals("DELETE_SUCCESS") || res.equals("DELETEDIR_SUCCESS")) { statusLabel.setText("🗑 Moved to Recycle Bin: " + name); showNoPreview("Select a file to preview"); refreshFileList(); }
+                else statusLabel.setText("Failed: " + res);
+            } catch (Exception e) { statusLabel.setText("Error: " + e.getMessage()); } } });
         }
     }
 
     @FXML private void handleLogout() {
-        if(mediaPlayer!=null){mediaPlayer.stop();mediaPlayer.dispose();}
+        if (mediaPlayer != null) { mediaPlayer.stop(); mediaPlayer.dispose(); }
         SessionManager.clearSession();
-        ((Stage)welcomeLabel.getScene().getWindow()).close();
+        ((Stage) welcomeLabel.getScene().getWindow()).close();
     }
 
-    private void showNoPreview(String msg){imagePreview.setVisible(false);imagePreview.setImage(null);previewLabel.setText(msg);}
-    private String getExtension(String f){return f.contains(".")?f.substring(f.lastIndexOf(".")+1).toLowerCase():"";}
+    private void showNoPreview(String msg) { imagePreview.setVisible(false); imagePreview.setImage(null); previewLabel.setText(msg); }
+    private String getExtension(String f)  { return f.contains(".") ? f.substring(f.lastIndexOf(".") + 1).toLowerCase() : ""; }
 
-    // ===================== FileItem =====================
+    // =========================================================================
+    //  FileItem
+    // =========================================================================
 
     public static class FileItem {
-        private final String displayName,rawName,size,date;
+        private final String displayName, rawName, size, date;
         private final boolean isFolder;
-        public FileItem(String dn,String rn,boolean isFolder,String sz,String dt){displayName=dn;rawName=rn;this.isFolder=isFolder;size=sz;date=dt;}
-        public String getDisplayName(){return displayName;}
-        public String getRawName(){return rawName;}
-        public boolean isFolder(){return isFolder;}
-        public String getSize(){return size;}
-        public String getDate(){return date;}
+        public FileItem(String dn, String rn, boolean isFolder, String sz, String dt) { displayName=dn; rawName=rn; this.isFolder=isFolder; size=sz; date=dt; }
+        public String getDisplayName() { return displayName; }
+        public String getRawName()     { return rawName; }
+        public boolean isFolder()      { return isFolder; }
+        public String getSize()        { return size; }
+        public String getDate()        { return date; }
     }
 
-    // ===================== TabState =====================
+    // =========================================================================
+    //  TabState
+    // =========================================================================
 
     private static class TabState {
         String currentPath;
         boolean inRecycleBin=false, inSharedView=false, inGroupView=false;
         String currentGroupId=null, currentGroupName=null, currentGroupPath="";
-        List<FileItem> allItems=new ArrayList<>();
+        List<FileItem> allItems = new ArrayList<>();
         Button tabButton;
         TableView<FileItem> tableView;
-        TableColumn<FileItem,String> nameCol,sizeCol,dateCol;
+        TableColumn<FileItem,String> nameCol, sizeCol, dateCol;
 
         TabState(String path, Button btn, TableView<FileItem> tv,
                  TableColumn<FileItem,String> nameCol,

@@ -331,6 +331,40 @@ public class DashboardController {
     }
 
 
+
+    private void updateProfileBorderStyle() {
+        if (profileBorderCircle == null) return;
+        if (isDarkTheme) {
+            profileBorderCircle.setStyle("-fx-fill: transparent; -fx-stroke: #00d4ff; -fx-stroke-width: 3;");
+        } else {
+            profileBorderCircle.setStyle("-fx-fill: transparent; -fx-stroke: #6f7f76; -fx-stroke-width: 3;");
+        }
+    }
+
+    private String bookmarkButtonStyle() {
+        if (isDarkTheme) {
+            return "-fx-background-color: rgba(0,212,255,0.08);" +
+                    "-fx-text-fill: rgba(255,255,255,0.8); -fx-font-size: 11px;" +
+                    "-fx-font-family: 'Courier New'; -fx-cursor: hand;" +
+                    "-fx-background-radius: 5; -fx-padding: 3 10 3 10;" +
+                    "-fx-border-color: rgba(0,212,255,0.2); -fx-border-width: 1; -fx-border-radius: 5;";
+        } else {
+            return "-fx-background-color: linear-gradient(to bottom, #d9dbd5, #bcc2bc);" +
+                    "-fx-text-fill: #2f3f39; -fx-font-size: 11px;" +
+                    "-fx-font-family: 'Courier New'; -fx-cursor: hand;" +
+                    "-fx-background-radius: 12; -fx-padding: 4 10 4 10;" +
+                    "-fx-border-color: #979f98; -fx-border-width: 1; -fx-border-radius: 12;";
+        }
+    }
+
+    private String bookmarkHintStyle() {
+        if (isDarkTheme) {
+            return "-fx-text-fill: rgba(0,212,255,0.3); -fx-font-size: 10px; -fx-font-family: 'Courier New';";
+        } else {
+            return "-fx-text-fill: rgba(55,65,60,0.75); -fx-font-size: 10px; -fx-font-family: 'Courier New';";
+        }
+    }
+
     // =========================================================================
     //  PROFILE PICTURE
     // =========================================================================
@@ -346,7 +380,7 @@ public class DashboardController {
             profileImageView.setCache(true);
         }
         if (profileBorderCircle != null) {
-            profileBorderCircle.setStyle("-fx-fill: transparent; -fx-stroke: #00d4ff; -fx-stroke-width: 3;");
+            updateProfileBorderStyle();
         }
     }
 
@@ -645,22 +679,47 @@ public class DashboardController {
     }
 
     private String inactiveTabStyle() {
-        return "-fx-background-color: rgba(0,212,255,0.05);" +
-                "-fx-text-fill: rgba(255,255,255,0.6); -fx-font-size: 11px;" +
-                "-fx-font-family: 'Courier New'; -fx-cursor: hand;" +
-                "-fx-background-radius: 6 6 0 0; -fx-padding: 5 12 5 12;" +
-                "-fx-border-color: rgba(0,212,255,0.2) rgba(0,212,255,0.2) transparent rgba(0,212,255,0.2);" +
-                "-fx-border-width: 1; -fx-border-radius: 6 6 0 0;";
+        if (isDarkTheme) {
+            return "-fx-background-color: rgba(0,212,255,0.05);" +
+                    "-fx-text-fill: rgba(255,255,255,0.6); -fx-font-size: 11px;" +
+                    "-fx-font-family: 'Courier New'; -fx-cursor: hand;" +
+                    "-fx-background-radius: 6 6 0 0; -fx-padding: 5 12 5 12;" +
+                    "-fx-border-color: rgba(0,212,255,0.2) rgba(0,212,255,0.2) transparent rgba(0,212,255,0.2);" +
+                    "-fx-border-width: 1; -fx-border-radius: 6 6 0 0;";
+        } else {
+            return "-fx-background-color: linear-gradient(to bottom, #d5d7d1, #bcc2bc);" +
+                    "-fx-text-fill: #4b5b55; -fx-font-size: 11px;" +
+                    "-fx-font-family: 'Courier New'; -fx-cursor: hand;" +
+                    "-fx-background-radius: 12 12 0 0; -fx-padding: 6 12 6 12;" +
+                    "-fx-border-color: #9aa39d #9aa39d transparent #9aa39d;" +
+                    "-fx-border-width: 1; -fx-border-radius: 12 12 0 0;";
+        }
     }
 
     private String activeTabStyle() {
-        return "-fx-background-color: rgba(0,212,255,0.15);" +
-                "-fx-text-fill: #00d4ff; -fx-font-size: 11px;" +
-                "-fx-font-family: 'Courier New'; -fx-cursor: hand;" +
-                "-fx-background-radius: 6 6 0 0; -fx-padding: 5 12 5 12;" +
-                "-fx-border-color: #00d4ff #00d4ff transparent #00d4ff;" +
-                "-fx-border-width: 1; -fx-border-radius: 6 6 0 0;" +
-                "-fx-effect: dropshadow(gaussian, rgba(0,212,255,0.3), 6, 0, 0, 0);";
+        if (isDarkTheme) {
+            return "-fx-background-color: rgba(0,212,255,0.15);" +
+                    "-fx-text-fill: #00d4ff; -fx-font-size: 11px;" +
+                    "-fx-font-family: 'Courier New'; -fx-cursor: hand;" +
+                    "-fx-background-radius: 6 6 0 0; -fx-padding: 5 12 5 12;" +
+                    "-fx-border-color: #00d4ff #00d4ff transparent #00d4ff;" +
+                    "-fx-border-width: 1; -fx-border-radius: 6 6 0 0;" +
+                    "-fx-effect: dropshadow(gaussian, rgba(0,212,255,0.3), 6, 0, 0, 0);";
+        } else {
+            return "-fx-background-color: linear-gradient(to right, #beb7cf, #adb9b1);" +
+                    "-fx-text-fill: #22332d; -fx-font-size: 11px;" +
+                    "-fx-font-family: 'Courier New'; -fx-cursor: hand;" +
+                    "-fx-background-radius: 12 12 0 0; -fx-padding: 6 12 6 12;" +
+                    "-fx-border-color: #7f8d86 #7f8d86 transparent #7f8d86;" +
+                    "-fx-border-width: 1; -fx-border-radius: 12 12 0 0;";
+        }
+    }
+
+
+    private void refreshTabStyles() {
+        for (TabState tab : tabs) {
+            tab.tabButton.setStyle(tab == activeTab ? activeTabStyle() : inactiveTabStyle());
+        }
     }
 
     private void updateNavigationStyles() {
@@ -822,7 +881,7 @@ public class DashboardController {
         bookmarkButtonsBox.getChildren().clear();
         if (inGroupView) {
             Label hint = new Label("Bookmarks are available only in My Files.");
-            hint.setStyle("-fx-text-fill: rgba(0,212,255,0.3); -fx-font-size: 10px; -fx-font-family: 'Courier New';");
+            hint.setStyle(bookmarkHintStyle());
             bookmarkButtonsBox.getChildren().add(hint);
             return;
         }
@@ -834,11 +893,7 @@ public class DashboardController {
         }
         for (BookmarkManager.Bookmark bm : filtered) {
             Button btn = new Button(bm.getDisplayName());
-            btn.setStyle("-fx-background-color: rgba(0,212,255,0.08);" +
-                    "-fx-text-fill: rgba(255,255,255,0.8); -fx-font-size: 11px;" +
-                    "-fx-font-family: 'Courier New'; -fx-cursor: hand;" +
-                    "-fx-background-radius: 5; -fx-padding: 3 10 3 10;" +
-                    "-fx-border-color: rgba(0,212,255,0.2); -fx-border-width: 1; -fx-border-radius: 5;");
+            btn.setStyle(bookmarkButtonStyle());
             btn.setOnAction(e -> {
                 inRecycleBin = false; inSharedView = false; inGroupView = false;
                 currentGroupId = null; currentGroupName = null; currentGroupPath = "";
@@ -859,7 +914,7 @@ public class DashboardController {
         }
         if (filtered.isEmpty()) {
             Label hint = new Label("No bookmarks here — select a file or folder and click + Bookmark");
-            hint.setStyle("-fx-text-fill: rgba(0,212,255,0.3); -fx-font-size: 10px; -fx-font-family: 'Courier New';");
+            hint.setStyle(bookmarkHintStyle());
             bookmarkButtonsBox.getChildren().add(hint);
         }
     }
@@ -1362,8 +1417,21 @@ public class DashboardController {
 
     @FXML private void handleThemeToggle() {
         Scene scene = welcomeLabel.getScene();
-        if (isDarkTheme) { scene.getRoot().getStyleClass().remove("root-dark"); scene.getRoot().getStyleClass().add("root-light"); themeToggleBtn.setText("🌙 Dark Mode"); isDarkTheme=false; }
-        else             { scene.getRoot().getStyleClass().remove("root-light"); scene.getRoot().getStyleClass().add("root-dark"); themeToggleBtn.setText("☀ Light Mode"); isDarkTheme=true; }
+        if (isDarkTheme) {
+            scene.getRoot().getStyleClass().remove("root-dark");
+            scene.getRoot().getStyleClass().add("root-light");
+            themeToggleBtn.setText("🌙 Dark Mode");
+            isDarkTheme = false;
+        } else {
+            scene.getRoot().getStyleClass().remove("root-light");
+            scene.getRoot().getStyleClass().add("root-dark");
+            themeToggleBtn.setText("☀ Light Mode");
+            isDarkTheme = true;
+        }
+
+        updateProfileBorderStyle();
+        refreshTabStyles();
+        loadBookmarksBar();
     }
 
     // =========================================================================
@@ -1995,6 +2063,4 @@ public class DashboardController {
         }
     }
 
-
-    
 }

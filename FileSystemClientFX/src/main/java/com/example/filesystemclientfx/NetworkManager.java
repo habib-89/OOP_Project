@@ -12,6 +12,12 @@ public class NetworkManager {
     private DataOutputStream out;
     private DataInputStream in;
     private String serverHost = "localhost"; // default
+    private String sessionUsername;
+    private String sessionPassword;
+    private Socket liveSocket;
+    private DataOutputStream liveOut;
+    private DataInputStream liveIn;
+    private Thread liveListenerThread;
 
     public void setServerHost(String host) {
         this.serverHost = host.trim();
@@ -26,6 +32,18 @@ public class NetworkManager {
         socket = new Socket(serverHost, 5001);
         out = new DataOutputStream(socket.getOutputStream());
         in = new DataInputStream(socket.getInputStream());
+    }
+
+
+    public String login(String username, String password) throws Exception {
+        connect();
+        out.writeUTF("LOGIN " + username + " " + password);
+        String response = in.readUTF();
+        if ("SUCCESS".equals(response)) {
+            this.sessionUsername = username;
+            this.sessionPassword = password;
+        }
+        return response;
     }
 
     public String sendMessage(String message) throws Exception {
@@ -369,6 +387,68 @@ public class NetworkManager {
         fos.close();
 
         return "DOWNLOAD_SUCCESS";
+    }
+
+
+    public void startDiscussionListener(String groupId, String fileName, Consumer<String> onUpdate) throws Exception {
+        stopDiscussionListener();
+
+        if (sessionUsername == null || sessionPassword == null) {
+            throw new IllegalStateException("Live discussion requires a logged-in session.");
+        }
+
+        liveSocket = new Socket(serverHost, 5001);
+        liveOut = new DataOutputStream(liveSocket.getOutputStream());
+        liveIn = new DataInputStream(liveSocket.getInputStream());
+
+        liveOut.writeUTF("LOGIN " + sessionUsername + " " + sessionPassword);
+        String loginResponse = liveIn.readUTF();
+        if (!"SUCCESS".equals(loginResponse)) {
+            stopDiscussionListener();
+            throw new IOException("Live discussion login failed.");
+        }
+
+        liveOut.writeUTF("SUBSCRIBE_DISCUSSION " + groupId + "|" + fileName);
+        String subscribeResponse = liveIn.readUTF();
+        if (!"SUBSCRIBE_SUCCESS".equals(subscribeResponse)) {
+            stopDiscussionListener();
+            throw new IOException(subscribeResponse);
+        }
+
+        liveListenerThread = new Thread(() -> {
+            try {
+                while (liveSocket != null && !liveSocket.isClosed()) {
+                    String message = liveIn.readUTF();
+                    if (message != null && message.startsWith("DISCUSSION_UPDATE ")) {
+                        if (onUpdate != null) {
+                            onUpdate.accept(message);
+                        }
+                    }
+                }
+            } catch (Exception ignored) {
+            }
+        });
+        liveListenerThread.setDaemon(true);
+        liveListenerThread.start();
+    }
+
+    public void stopDiscussionListener() {
+        try {
+            if (liveOut != null) {
+                liveOut.writeUTF("UNSUBSCRIBE_DISCUSSION");
+                liveOut.flush();
+            }
+        } catch (Exception ignored) {
+        }
+
+        try { if (liveIn != null) liveIn.close(); } catch (Exception ignored) {}
+        try { if (liveOut != null) liveOut.close(); } catch (Exception ignored) {}
+        try { if (liveSocket != null) liveSocket.close(); } catch (Exception ignored) {}
+
+        liveIn = null;
+        liveOut = null;
+        liveSocket = null;
+        liveListenerThread = null;
     }
 
     // ===================== GROUP FEATURES =====================

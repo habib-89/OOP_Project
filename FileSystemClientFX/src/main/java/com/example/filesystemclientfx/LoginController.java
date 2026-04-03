@@ -176,7 +176,7 @@ public class LoginController {
                 return;
             }
 
-            String response = network.sendMessage("LOGIN " + username + " " + password);
+            String response = network.login(username, password);
 
             if (response.equals("SUCCESS")) {
                 // FIX: save only username, not password

@@ -43,6 +43,7 @@ public class RegisterController {
         }
 
         try {
+            network.setServerHost("192.168.0.104");
             network.connect();
             String response = network.sendMessage(
                     "REGISTER " + username + " " + password);

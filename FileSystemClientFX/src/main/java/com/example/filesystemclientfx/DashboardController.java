@@ -33,6 +33,7 @@ import javafx.scene.control.TextField;
 
 public class DashboardController {
 
+
     @FXML private Label welcomeLabel;
     @FXML private Label statusLabel;
     @FXML private ImageView imagePreview;
@@ -91,6 +92,7 @@ public class DashboardController {
     @FXML private javafx.scene.layout.VBox commentsBox;
     @FXML private TextField commentInputField;
     private String currentDiscussionFile = null;
+    private boolean discussionListenerActive = false;
 
     // ── Media state ───────────────────────────────────────────────────────────
     private MediaPlayer mediaPlayer;
@@ -136,7 +138,6 @@ public class DashboardController {
         if (currentGroupId == null) return;
         currentDiscussionFile = fileName;
 
-        // Switch preview panel to discussion panel
         previewPanel.setVisible(false);
         previewPanel.setManaged(false);
         discussionPanel.setVisible(true);
@@ -146,6 +147,7 @@ public class DashboardController {
         commentInputField.clear();
 
         loadDiscussionInPanel(fileName);
+        startDiscussionListener();
         statusLabel.setText("Discussion loaded for: " + fileName);
     }
 
@@ -229,6 +231,7 @@ public class DashboardController {
 
     @FXML
     private void handleCloseDiscussion() {
+        stopDiscussionListener();
         currentDiscussionFile = null;
         discussionPanel.setVisible(false);
         discussionPanel.setManaged(false);
@@ -1071,7 +1074,7 @@ public class DashboardController {
             try {
                 // Convert all PDF pages to PNG images
                 org.apache.pdfbox.pdmodel.PDDocument doc =
-                        org.apache.pdfbox.Loader.loadPDF(pdfFile);
+                        org.apache.pdfbox.pdmodel.PDDocument.load(pdfFile);
                 org.apache.pdfbox.rendering.PDFRenderer renderer =
                         new org.apache.pdfbox.rendering.PDFRenderer(doc);
 
@@ -1229,6 +1232,7 @@ public class DashboardController {
     // =========================================================================
 
     @FXML private void handleNavFiles() {
+        stopDiscussionListener();
         removeCommentColumn();
         inRecycleBin=false; inSharedView=false; inGroupView=false;
         currentPath=""; currentGroupId=null; currentGroupName=null; currentGroupPath="";
@@ -1243,6 +1247,7 @@ public class DashboardController {
     }
 
     @FXML private void handleNavRecycleBin() {
+        stopDiscussionListener();
         removeCommentColumn();
         inRecycleBin=true; inSharedView=false; inGroupView=false;
         currentGroupId=null; currentGroupName=null; currentGroupPath="";
@@ -1257,6 +1262,7 @@ public class DashboardController {
     }
 
     @FXML private void handleNavShared() {
+        stopDiscussionListener();
         removeCommentColumn();
         inSharedView=true; inRecycleBin=false; inGroupView=false;
         currentGroupId=null; currentGroupName=null; currentGroupPath="";
@@ -1271,6 +1277,7 @@ public class DashboardController {
     }
 
     @FXML private void handleNavGroups() {
+        stopDiscussionListener();
         inGroupView=true; inSharedView=false; inRecycleBin=false;
         currentGroupId=null; currentGroupName=null; currentGroupPath="";
         syncActiveTabState(); updateNavigationStyles(); updateActionButtons(); refreshGroups();
@@ -1859,7 +1866,32 @@ public class DashboardController {
     }
 
 
-    // ================= COMMENT SYSTEM =================
+
+    private void startDiscussionListener() {
+        if (discussionListenerActive || currentDiscussionFile == null || currentGroupId == null || network == null) return;
+
+        try {
+            network.startDiscussionListener(currentGroupId, currentDiscussionFile, msg ->
+                    javafx.application.Platform.runLater(() -> {
+                        if (currentDiscussionFile != null && discussionPanel.isVisible()) {
+                            loadDiscussionInPanel(currentDiscussionFile);
+                        }
+                    })
+            );
+            discussionListenerActive = true;
+        } catch (Exception e) {
+            statusLabel.setText("Live discussion unavailable: " + e.getMessage());
+        }
+    }
+
+    private void stopDiscussionListener() {
+        discussionListenerActive = false;
+        if (network != null) {
+            network.stopDiscussionListener();
+        }
+    }
+
+// ================= COMMENT SYSTEM =================
 
     private void openDiscussionPanel(String fileName) {
         if (network == null || currentGroupId == null) return;

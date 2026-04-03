@@ -324,6 +324,53 @@ public class NetworkManager {
         }
     }
 
+
+
+    public String uploadProfilePicture(File file, Consumer<Double> progressCallback) throws Exception {
+        out.writeUTF("UPLOAD_PROFILE " + file.length());
+
+        byte[] buffer = new byte[4096];
+        FileInputStream fis = new FileInputStream(file);
+        long totalBytes = file.length();
+        long uploadedBytes = 0;
+        int bytesRead;
+
+        while ((bytesRead = fis.read(buffer)) != -1) {
+            out.write(buffer, 0, bytesRead);
+            uploadedBytes += bytesRead;
+            if (progressCallback != null) {
+                double progress = (double) uploadedBytes / totalBytes;
+                progressCallback.accept(progress);
+            }
+        }
+
+        fis.close();
+        out.flush();
+        return in.readUTF();
+    }
+
+    public String downloadProfilePicture(File saveTo) throws Exception {
+        out.writeUTF("DOWNLOAD_PROFILE");
+        String response = in.readUTF();
+
+        if (response.startsWith("ERROR")) return response;
+
+        long fileSize = Long.parseLong(response.split(" ")[1]);
+        byte[] buffer = new byte[4096];
+        long remaining = fileSize;
+
+        FileOutputStream fos = new FileOutputStream(saveTo);
+        while (remaining > 0) {
+            int read = in.read(buffer, 0, (int) Math.min(buffer.length, remaining));
+            if (read == -1) break;
+            fos.write(buffer, 0, read);
+            remaining -= read;
+        }
+        fos.close();
+
+        return "DOWNLOAD_SUCCESS";
+    }
+
     // ===================== GROUP FEATURES =====================
 
     public String createGroup(String groupName) throws Exception {
@@ -462,22 +509,6 @@ public class NetworkManager {
             this.groupName = groupName;
             this.owner = owner;
         }
-    }
-
-
-    public String setGroupFileDescription(String groupId, String fileName, String description) throws Exception {
-        out.writeUTF("SETFILEDESCRIPTION " + groupId + "|" + fileName + "|" + description);
-        return in.readUTF();
-    }
-
-    public String addComment(String groupId, String fileName, String comment) throws Exception {
-        out.writeUTF("ADDCOMMENT " + groupId + "|" + fileName + "|" + comment);
-        return in.readUTF();
-    }
-
-    public String getGroupFileDiscussion(String groupId, String fileName) throws Exception {
-        out.writeUTF("GETFILEDISCUSSION " + groupId + "|" + fileName);
-        return in.readUTF();
     }
 
 }

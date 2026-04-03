@@ -26,6 +26,10 @@ import java.util.List;
 import java.util.Set;
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
+import javafx.scene.layout.VBox;
+import javafx.scene.layout.HBox;
+import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
 
 public class DashboardController {
 
@@ -80,6 +84,14 @@ public class DashboardController {
     @FXML private Label pdfTitleLabel;
     @FXML private Label pdfPageLabel;
 
+    @FXML private javafx.scene.layout.VBox previewPanel;
+    @FXML private javafx.scene.layout.VBox discussionPanel;
+    @FXML private Label discussionTitleLabel;
+    @FXML private TextArea discussionDescArea;
+    @FXML private javafx.scene.layout.VBox commentsBox;
+    @FXML private TextField commentInputField;
+    private String currentDiscussionFile = null;
+
     // ── Media state ───────────────────────────────────────────────────────────
     private MediaPlayer mediaPlayer;
     private boolean videoPlaying  = false;
@@ -118,6 +130,113 @@ public class DashboardController {
             Set.of("pdf");
 
     private long lastClickTime = 0;
+
+
+    private void openDiscussionInPanel(String fileName) {
+        if (currentGroupId == null) return;
+        currentDiscussionFile = fileName;
+
+        // Switch preview panel to discussion panel
+        previewPanel.setVisible(false);
+        previewPanel.setManaged(false);
+        discussionPanel.setVisible(true);
+        discussionPanel.setManaged(true);
+
+        discussionTitleLabel.setText("Discussion — " + fileName);
+        commentInputField.clear();
+
+        loadDiscussionInPanel(fileName);
+        statusLabel.setText("Discussion loaded for: " + fileName);
+    }
+
+    private void loadDiscussionInPanel(String fileName) {
+        try {
+            String res = network.sendMessage("GETFILEDISCUSSION " + currentGroupId + "|" + fileName);
+            discussionDescArea.clear();
+            commentsBox.getChildren().clear();
+
+            if (res.equals("EMPTY")) return;
+
+            String[] parts = res.split(";;");
+            for (String line : parts) {
+                if (line.startsWith("description:")) {
+                    discussionDescArea.setText(line.substring(12));
+                } else if (line.startsWith("comment:")) {
+                    String raw = line.substring(8); // "username|comment text"
+                    addCommentBubble(raw);
+                }
+            }
+        } catch (Exception e) {
+            statusLabel.setText("Error loading discussion: " + e.getMessage());
+        }
+    }
+
+    private void addCommentBubble(String raw) {
+        // raw format: "username|comment text"
+        String[] parts = raw.split("\\|", 2);
+        String user = parts.length > 0 ? parts[0] : "?";
+        String text = parts.length > 1 ? parts[1] : raw;
+
+        VBox bubble = new VBox(2);
+        bubble.setStyle("-fx-background-color: rgba(0,212,255,0.08);" +
+                "-fx-background-radius: 8;" +
+                "-fx-padding: 6 10 6 10;" +
+                "-fx-border-color: rgba(0,212,255,0.15);" +
+                "-fx-border-width: 1; -fx-border-radius: 8;");
+
+        Label userLabel = new Label("User");
+        userLabel.setStyle("-fx-text-fill: #00d4ff; -fx-font-size: 9px;" +
+                "-fx-font-family: 'Courier New'; -fx-font-weight: bold;");
+
+        Label textLabel = new Label(user + " | " + text);
+        textLabel.setStyle("-fx-text-fill: rgba(255,255,255,0.85); -fx-font-size: 11px;" +
+                "-fx-font-family: 'Courier New';");
+        textLabel.setWrapText(true);
+
+        bubble.getChildren().addAll(userLabel, textLabel);
+        commentsBox.getChildren().add(bubble);
+    }
+
+    @FXML
+    private void handleSendComment() {
+        if (currentDiscussionFile == null || currentGroupId == null) return;
+        String text = commentInputField.getText().trim();
+        if (text.isEmpty()) return;
+
+        try {
+            network.sendMessage("ADDCOMMENT " + currentGroupId + "|" +
+                    currentDiscussionFile + "|" + text);
+            commentInputField.clear();
+            loadDiscussionInPanel(currentDiscussionFile);
+        } catch (Exception e) {
+            statusLabel.setText("Error: " + e.getMessage());
+        }
+    }
+
+    @FXML
+    private void handleSaveDescription() {
+        if (currentDiscussionFile == null || currentGroupId == null) return;
+        String desc = discussionDescArea.getText().trim();
+
+        try {
+            network.sendMessage("SETFILEDESCRIPTION " + currentGroupId + "|" +
+                    currentDiscussionFile + "|" + desc);
+            statusLabel.setText("✅ Description saved.");
+        } catch (Exception e) {
+            statusLabel.setText("Error: " + e.getMessage());
+        }
+    }
+
+    @FXML
+    private void handleCloseDiscussion() {
+        currentDiscussionFile = null;
+        discussionPanel.setVisible(false);
+        discussionPanel.setManaged(false);
+        previewPanel.setVisible(true);
+        previewPanel.setManaged(true);
+        showNoPreview("Select a file to preview");
+        statusLabel.setText("");
+    }
 
     // =========================================================================
     //  INIT
@@ -327,11 +446,17 @@ public class DashboardController {
     // =========================================================================
 
     @FXML
-    private void handleNewTab() {
-        String startPath = activeTab != null ? activeTab.currentPath : "";
-        openNewTab(startPath);
-    }
 
+
+    private void handleNewTab() {
+        // Save current tab's viewer state before opening new tab
+        saveViewerStateToActiveTab();
+
+        // Clear the preview panel for the new tab
+        showNoPreview("Select a file to preview");
+
+        openNewTab("");
+    }
     private void openNewTab(String startPath) {
         TableView<FileItem> tv = new TableView<>();
         tv.setStyle("-fx-background-color: transparent; -fx-border-color: transparent;");
@@ -389,8 +514,22 @@ public class DashboardController {
         switchToTab(state);
         refreshFileList();
     }
-
     private void switchToTab(TabState state) {
+        // Save current viewer state before leaving
+        saveViewerStateToActiveTab();
+
+        // Stop video if playing (don't dispose — we won't restore video state)
+        if (mediaPlayer != null) {
+            mediaPlayer.stop();
+            mediaPlayer.dispose();
+            mediaPlayer = null;
+            videoPlaying = false;
+            playPauseBtn.setText("▶");
+            seekSlider.setValue(0);
+            currentTimeLabel.setText("00:00");
+            totalTimeLabel.setText("00:00");
+        }
+
         if (activeTab != null) activeTab.tabButton.setStyle(inactiveTabStyle());
         activeTab        = state;
         currentPath      = state.currentPath;
@@ -420,6 +559,36 @@ public class DashboardController {
         } else {
             pathLabel.setText("/ " + (currentPath.isEmpty() ? "Home" : currentPath.replace("/", " / ")));
         }
+
+        // Restore viewer state for this tab
+        switch (state.viewerMode) {
+            case IMAGE -> {
+                if (state.viewerFile != null) {
+                    showImageViewer(state.viewerFile, state.viewerTitle);
+                } else {
+                    showFileBrowser();
+                    showNoPreview("Select a file to preview");
+                }
+            }
+            case PDF -> {
+                if (!state.pdfPages.isEmpty()) {
+                    pdfPageFiles = new ArrayList<>(state.pdfPages);
+                    currentPdfPage = state.pdfPage;
+                    currentImageFile = null;
+                    showImageViewer(pdfPageFiles.get(currentPdfPage), state.viewerTitle);
+                    updatePdfPageControls(state.viewerTitle);
+                } else {
+                    showFileBrowser();
+                    showNoPreview("Select a file to preview");
+                }
+            }
+            case VIDEO, FILES -> {
+                showFileBrowser();
+                showNoPreview("Select a file to preview");
+            }
+
+        }
+
         loadBookmarksBar();
     }
 
@@ -493,6 +662,7 @@ public class DashboardController {
     }
 
     private void refreshGroups() {
+//        removeCommentColumn();
         try {
             List<NetworkManager.GroupInfo> groups = network.listGroups();
             allItems = new ArrayList<>();
@@ -527,7 +697,14 @@ public class DashboardController {
                 allItems.add(new FileItem(iconFor(f) + "  " + f, f, false, sz, dt));
                 idx++;
             }
-            if (activeTab != null) activeTab.tableView.setItems(FXCollections.observableArrayList(allItems));
+
+            if (currentGroupId != null) {
+                addCommentColumnIfNeeded();
+            }
+
+            if (activeTab != null)
+                activeTab.tableView.setItems(FXCollections.observableArrayList(allItems));
+
             String pretty = (currentGroupPath == null || currentGroupPath.isEmpty())
                     ? currentGroupName
                     : currentGroupName + " / " + currentGroupPath.replace("/", " / ");
@@ -539,6 +716,60 @@ public class DashboardController {
         loadBookmarksBar();
         applySorting();
         updateActionButtons();
+    }
+
+    private void removeCommentColumn() {
+        if (activeTab == null) return;
+        activeTab.tableView.getColumns().removeIf(col -> "Comment".equals(col.getText()));
+    }
+
+    private boolean commentColumnAdded = false;
+
+    private void addCommentColumnIfNeeded() {
+        if (activeTab == null) return;
+
+        // Remove existing comment column first to prevent duplicates on refresh
+        activeTab.tableView.getColumns().removeIf(col -> "Comment".equals(col.getText()));
+
+        // Only add comment column when inside a group folder
+        if (!inGroupView || currentGroupId == null) return;
+
+        TableColumn<FileItem, Void> commentCol = new TableColumn<>("Comment");
+        commentCol.setPrefWidth(90);
+        commentCol.setSortable(false);
+        commentCol.setStyle("-fx-background-color: transparent;");
+        commentCol.getStyleClass().add("comment-column");
+
+        commentCol.setCellFactory(col -> new javafx.scene.control.TableCell<>() {
+            private final Button btn = new Button("💬 Com...");
+            {
+                btn.setStyle("-fx-background-color: rgba(0,212,255,0.08);" +
+                        "-fx-text-fill: #00d4ff; -fx-font-size: 10px;" +
+                        "-fx-font-family: 'Courier New'; -fx-background-radius: 5;" +
+                        "-fx-padding: 4 8 4 8; -fx-cursor: hand;" +
+                        "-fx-border-color: rgba(0,212,255,0.3);" +
+                        "-fx-border-width: 1; -fx-border-radius: 5;");
+                btn.setOnAction(e -> {
+                    FileItem item = getTableView().getItems().get(getIndex());
+                    if (!item.isFolder()) {
+                        openDiscussionInPanel(item.getRawName());
+                    }
+                });
+            }
+
+            @Override
+            protected void updateItem(Void item, boolean empty) {
+                super.updateItem(item, empty);
+                if (empty) {
+                    setGraphic(null);
+                } else {
+                    FileItem fi = getTableView().getItems().get(getIndex());
+                    setGraphic(fi.isFolder() ? null : btn);
+                }
+            }
+        });
+
+        activeTab.tableView.getColumns().add(commentCol);
     }
 
     // =========================================================================
@@ -746,41 +977,75 @@ public class DashboardController {
     // =========================================================================
     //  IMAGE VIEWER
     // =========================================================================
-
     private void showImageViewer(File imageFile, String filename) {
         if (imageView == null) {
-            // Fallback: show in preview panel
-            try { imagePreview.setImage(new Image(new FileInputStream(imageFile))); imagePreview.setVisible(true); previewLabel.setText(filename); }
-            catch (Exception e) { showNoPreview("Could not display image."); }
+            try {
+                imagePreview.setImage(new Image(new FileInputStream(imageFile)));
+                imagePreview.setVisible(true);
+                previewLabel.setText(filename);
+            } catch (Exception e) {
+                showNoPreview("Could not display image.");
+            }
             return;
         }
+
         hideFileBrowserForViewer();
-        imageView.setVisible(true); imageView.setManaged(true);
+        imageView.setVisible(true);
+        imageView.setManaged(true);
         imageTitleLabel.setText(filename);
         currentImageFile = imageFile;
+
         try {
             Image img = new Image(new FileInputStream(imageFile));
             imageViewFull.setImage(img);
             imageViewFull.setPreserveRatio(true);
-            imageViewFull.fitWidthProperty().bind(imageView.widthProperty().subtract(40));
-            imageViewFull.fitHeightProperty().bind(imageView.heightProperty().subtract(120));
-            if (zoomSlider != null) { zoomSlider.setValue(100); zoomLabel.setText("100%"); }
-            statusLabel.setText("🖼 " + filename + "  (" + (int) img.getWidth() + " × " + (int) img.getHeight() + " px)");
-        } catch (Exception e) { statusLabel.setText("Could not display image: " + e.getMessage()); handleBackFromImage(); }
-    }
 
+            // DON'T bind to parent size — let zoom control the size
+            imageViewFull.fitWidthProperty().unbind();
+            imageViewFull.fitHeightProperty().unbind();
+            imageViewFull.setFitWidth(700);
+            imageViewFull.setFitHeight(600);
+
+            if (zoomSlider != null) {
+                zoomSlider.setValue(100);
+                zoomLabel.setText("100%");
+            }
+
+            statusLabel.setText("🖼 " + filename +
+                    "  (" + (int) img.getWidth() + " × " + (int) img.getHeight() + " px)");
+        } catch (Exception e) {
+            statusLabel.setText("Could not display image: " + e.getMessage());
+            handleBackFromImage();
+        }
+    }
     private void applyZoom(double percent) {
-        if (imageViewFull == null || currentImageFile == null) return;
+        if (imageViewFull == null || (currentImageFile == null && pdfPageFiles.isEmpty())) return;
+
         imageViewFull.fitWidthProperty().unbind();
         imageViewFull.fitHeightProperty().unbind();
-        double base = 600;
-        imageViewFull.setFitWidth(base * percent / 100.0);
-        imageViewFull.setFitHeight(base * percent / 100.0);
+        imageViewFull.setPreserveRatio(true);
+
+        if (percent == 100) {
+            // At 100%, fit to the visible area nicely
+            imageViewFull.setFitWidth(700);
+            imageViewFull.setFitHeight(600);
+        } else {
+            double base = 700;
+            double size = base * percent / 100.0;
+            imageViewFull.setFitWidth(size);
+            imageViewFull.setFitHeight(size);
+        }
     }
 
     @FXML private void handleBackFromImage() {
         currentImageFile = null;
-        if (imageViewFull != null) { imageViewFull.fitWidthProperty().unbind(); imageViewFull.fitHeightProperty().unbind(); imageViewFull.setImage(null); }
+        pdfPageFiles = new ArrayList<>(); // ADD THIS
+        currentPdfPage = 0;              // ADD THIS
+        if (imageViewFull != null) {
+            imageViewFull.fitWidthProperty().unbind();
+            imageViewFull.fitHeightProperty().unbind();
+            imageViewFull.setImage(null);
+        }
         showFileBrowser();
         statusLabel.setText("Back to files.");
     }
@@ -797,19 +1062,77 @@ public class DashboardController {
     //  PDF VIEWER
     // =========================================================================
 
+    private List<File> pdfPageFiles = new ArrayList<>();
+    private int currentPdfPage = 0;
+
     private void showPdfViewer(File pdfFile, String filename) {
-        if (pdfView == null || pdfWebView == null) {
-            // Fallback: open with system app
-            try { java.awt.Desktop.getDesktop().open(pdfFile); statusLabel.setText("Opened PDF: " + filename); }
-            catch (Exception e) { statusLabel.setText("Cannot open PDF: " + e.getMessage()); }
-            return;
-        }
-        hideFileBrowserForViewer();
-        pdfView.setVisible(true); pdfView.setManaged(true);
-        pdfTitleLabel.setText(filename);
-        currentPdfFile = pdfFile;
-        pdfWebView.getEngine().load(pdfFile.toURI().toString());
-        statusLabel.setText("📄 " + filename);
+        showProgress("Rendering PDF...");
+        Thread t = new Thread(() -> {
+            try {
+                // Convert all PDF pages to PNG images
+                org.apache.pdfbox.pdmodel.PDDocument doc =
+                        org.apache.pdfbox.Loader.loadPDF(pdfFile);
+                org.apache.pdfbox.rendering.PDFRenderer renderer =
+                        new org.apache.pdfbox.rendering.PDFRenderer(doc);
+
+                pdfPageFiles = new ArrayList<>();
+                for (int i = 0; i < doc.getNumberOfPages(); i++) {
+                    java.awt.image.BufferedImage img = renderer.renderImageWithDPI(i, 150);
+                    File pageFile = File.createTempFile("pdf_page_" + i + "_", ".png");
+                    pageFile.deleteOnExit();
+                    javax.imageio.ImageIO.write(img, "PNG", pageFile);
+                    pdfPageFiles.add(pageFile);
+                }
+                doc.close();
+
+                currentPdfPage = 0;
+                currentPdfFile = pdfFile;
+
+                javafx.application.Platform.runLater(() -> {
+                    hideProgress();
+                    if (pdfPageFiles.isEmpty()) {
+                        statusLabel.setText("PDF has no pages.");
+                        return;
+                    }
+                    // Reuse the image viewer to display pages
+                    showImageViewer(pdfPageFiles.get(0), filename + " — Page 1 of " + pdfPageFiles.size());
+                    imageTitleLabel.setText(filename);
+                    updatePdfPageControls(filename);
+                });
+
+            } catch (Exception e) {
+                javafx.application.Platform.runLater(() -> {
+                    hideProgress();
+                    statusLabel.setText("PDF error: " + e.getMessage());
+                });
+            }
+        });
+        t.setDaemon(true);
+        t.start();
+    }
+
+    private void updatePdfPageControls(String filename) {
+        int total = pdfPageFiles.size();
+        imageTitleLabel.setText(filename + "  •  Page " + (currentPdfPage + 1) + " of " + total);
+        statusLabel.setText("📕 " + filename + "  —  Page " + (currentPdfPage + 1) + "/" + total);
+    }
+
+    @FXML
+    private void handlePdfPrevPage() {
+        if (pdfPageFiles.isEmpty() || currentPdfPage <= 0) return;
+        currentPdfPage--;
+        imageViewFull.setImage(new javafx.scene.image.Image(
+                pdfPageFiles.get(currentPdfPage).toURI().toString()));
+        updatePdfPageControls(pdfTitleLabel != null ? pdfTitleLabel.getText() : "PDF");
+    }
+
+    @FXML
+    private void handlePdfNextPage() {
+        if (pdfPageFiles.isEmpty() || currentPdfPage >= pdfPageFiles.size() - 1) return;
+        currentPdfPage++;
+        imageViewFull.setImage(new javafx.scene.image.Image(
+                pdfPageFiles.get(currentPdfPage).toURI().toString()));
+        updatePdfPageControls(pdfTitleLabel != null ? pdfTitleLabel.getText() : "PDF");
     }
 
     @FXML private void handleBackFromPdf() {
@@ -906,24 +1229,45 @@ public class DashboardController {
     // =========================================================================
 
     @FXML private void handleNavFiles() {
+        removeCommentColumn();
         inRecycleBin=false; inSharedView=false; inGroupView=false;
         currentPath=""; currentGroupId=null; currentGroupName=null; currentGroupPath="";
         syncActiveTabState(); updateNavigationStyles(); updateActionButtons();
         showNoPreview("Select a file to preview"); refreshFileList();
+
+        // Close discussion if open
+        if (discussionPanel != null && discussionPanel.isVisible()) {
+            handleCloseDiscussion();
+        }
+        commentColumnAdded = false; // reset so it gets re-added next time
     }
 
     @FXML private void handleNavRecycleBin() {
+        removeCommentColumn();
         inRecycleBin=true; inSharedView=false; inGroupView=false;
         currentGroupId=null; currentGroupName=null; currentGroupPath="";
         syncActiveTabState(); updateNavigationStyles(); updateActionButtons();
         pathLabel.setText("/ Recycle Bin"); showNoPreview("Select a file to preview"); refreshBin();
+
+        // Close discussion if open
+        if (discussionPanel != null && discussionPanel.isVisible()) {
+            handleCloseDiscussion();
+        }
+        commentColumnAdded = false; // reset so it gets re-added next time
     }
 
     @FXML private void handleNavShared() {
+        removeCommentColumn();
         inSharedView=true; inRecycleBin=false; inGroupView=false;
         currentGroupId=null; currentGroupName=null; currentGroupPath="";
         syncActiveTabState(); updateNavigationStyles(); updateActionButtons();
         pathLabel.setText("/ Shared with Me"); showNoPreview("Select a file to preview"); refreshShared();
+
+        // Close discussion if open
+        if (discussionPanel != null && discussionPanel.isVisible()) {
+            handleCloseDiscussion();
+        }
+        commentColumnAdded = false; // reset so it gets re-added next time
     }
 
     @FXML private void handleNavGroups() {
@@ -1264,6 +1608,7 @@ public class DashboardController {
         if (inGroupView) {
             if (currentGroupId == null) { statusLabel.setText("Already at Groups root."); return; }
             if (currentGroupPath == null || currentGroupPath.isEmpty()) {
+                removeCommentColumn();
                 currentGroupId = null; currentGroupName = null; currentGroupPath = "";
                 syncActiveTabState(); showNoPreview("Select a group or file."); refreshGroups(); return;
             }
@@ -1416,9 +1761,31 @@ public class DashboardController {
         }
     }
 
-    @FXML private void handleLogout() {
-        if (mediaPlayer != null) { mediaPlayer.stop(); mediaPlayer.dispose(); }
+    @FXML
+    private void handleLogout() {
+        if (mediaPlayer != null) {
+            mediaPlayer.stop();
+            mediaPlayer.dispose();
+        }
         SessionManager.clearSession();
+
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("Login.fxml"));
+            Scene scene = new Scene(loader.load(), 580, 650);
+
+            var cssUrl = getClass().getResource("login.css");
+            if (cssUrl != null) scene.getStylesheets().add(cssUrl.toExternalForm());
+
+            Stage loginStage = new Stage();
+            loginStage.setTitle("FileVault");
+            loginStage.setScene(scene);
+            loginStage.show();
+
+        } catch (Exception e) {
+            System.err.println("Could not open login screen: " + e.getMessage());
+        }
+
+        // Close the dashboard
         ((Stage) welcomeLabel.getScene().getWindow()).close();
     }
 
@@ -1453,12 +1820,41 @@ public class DashboardController {
         TableView<FileItem> tableView;
         TableColumn<FileItem,String> nameCol, sizeCol, dateCol;
 
+        // ADD THESE — viewer state per tab
+        enum ViewerMode { FILES, IMAGE, VIDEO, PDF }
+        ViewerMode viewerMode = ViewerMode.FILES;
+        File viewerFile = null;       // the image/pdf/video file currently open
+        String viewerTitle = "";      // title shown in the viewer
+        int pdfPage = 0;              // current PDF page
+        List<File> pdfPages = new ArrayList<>(); // all PDF pages
+
         TabState(String path, Button btn, TableView<FileItem> tv,
                  TableColumn<FileItem,String> nameCol,
                  TableColumn<FileItem,String> sizeCol,
                  TableColumn<FileItem,String> dateCol) {
             this.currentPath=path; this.tabButton=btn; this.tableView=tv;
             this.nameCol=nameCol; this.sizeCol=sizeCol; this.dateCol=dateCol;
+        }
+    }
+
+    private void saveViewerStateToActiveTab() {
+        if (activeTab == null) return;
+
+        if (videoView.isVisible()) {
+            activeTab.viewerMode = TabState.ViewerMode.VIDEO;
+            activeTab.viewerFile = null; // video is already playing, no need to restore
+        } else if (imageView != null && imageView.isVisible()) {
+            activeTab.viewerMode = TabState.ViewerMode.IMAGE;
+            activeTab.viewerFile = currentImageFile;
+            activeTab.viewerTitle = imageTitleLabel.getText();
+            // check if it's actually a PDF being shown in image viewer
+            if (!pdfPageFiles.isEmpty()) {
+                activeTab.viewerMode = TabState.ViewerMode.PDF;
+                activeTab.pdfPages = new ArrayList<>(pdfPageFiles);
+                activeTab.pdfPage = currentPdfPage;
+            }
+        } else {
+            activeTab.viewerMode = TabState.ViewerMode.FILES;
         }
     }
 

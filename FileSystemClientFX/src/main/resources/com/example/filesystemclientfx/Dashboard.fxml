@@ -69,15 +69,9 @@
             </HBox>
 
             <!-- TAB BAR -->
-            <HBox fx:id="tabBar" spacing="0" alignment="CENTER_LEFT"
-                  style="-fx-background-color: #0a0e1a;
-                         -fx-border-color: transparent transparent rgba(0,212,255,0.15) transparent;
-                         -fx-border-width: 0 0 1 0; -fx-padding: 5 10 0 10;">
+            <HBox fx:id="tabBar" spacing="0" alignment="CENTER_LEFT" styleClass="tab-bar">
                 <HBox fx:id="tabButtonsBox" spacing="3" alignment="CENTER_LEFT"/>
-                <Button text="＋" onAction="#handleNewTab"
-                        style="-fx-background-color: transparent;
-                               -fx-text-fill: rgba(0,212,255,0.6); -fx-font-size: 16px;
-                               -fx-cursor: hand; -fx-border-width: 0; -fx-padding: 2 10 2 10;"/>
+                <Button text="＋" onAction="#handleNewTab" styleClass="tab-add-btn"/>
             </HBox>
 
             <!-- Search bar -->
@@ -105,26 +99,13 @@
             </HBox>
 
             <!-- Bookmarks bar -->
-            <HBox fx:id="bookmarksBar" spacing="6" alignment="CENTER_LEFT"
-                  style="-fx-padding: 6 16 6 16;
-                         -fx-background-color: rgba(0,212,255,0.03);
-                         -fx-border-color: transparent transparent rgba(0,212,255,0.12) transparent;
-                         -fx-border-width: 0 0 1 0;">
-                <Label text="⭐" style="-fx-text-fill: rgba(0,212,255,0.5); -fx-font-size: 11px;"/>
+            <HBox fx:id="bookmarksBar" spacing="6" alignment="CENTER_LEFT" styleClass="bookmarks-bar">
+                <Label text="⭐" styleClass="bookmarks-icon"/>
                 <ScrollPane fx:id="bookmarksScroll" hbarPolicy="NEVER" vbarPolicy="NEVER"
-                            fitToHeight="true" HBox.hgrow="ALWAYS"
-                            style="-fx-background-color: transparent; -fx-background: transparent;
-                                   -fx-border-width: 0; -fx-padding: 0;">
-                    <HBox fx:id="bookmarkButtonsBox" spacing="5" alignment="CENTER_LEFT"
-                          style="-fx-padding: 0;"/>
+                            fitToHeight="true" HBox.hgrow="ALWAYS" styleClass="bookmarks-scroll">
+                    <HBox fx:id="bookmarkButtonsBox" spacing="5" alignment="CENTER_LEFT" styleClass="bookmarks-buttons-box"/>
                 </ScrollPane>
-                <Button text="+ Bookmark" onAction="#handleAddBookmark"
-                        style="-fx-background-color: transparent;
-                               -fx-text-fill: rgba(0,212,255,0.5); -fx-font-size: 10px;
-                               -fx-font-family: 'Courier New'; -fx-cursor: hand;
-                               -fx-border-color: rgba(0,212,255,0.2); -fx-border-width: 1;
-                               -fx-border-radius: 5; -fx-background-radius: 5;
-                               -fx-padding: 3 8 3 8;"/>
+                <Button text="+ Bookmark" onAction="#handleAddBookmark" styleClass="bookmark-add-btn"/>
             </HBox>
 
             <!-- Progress bar -->
@@ -161,64 +142,27 @@
 
                     <!-- DISCUSSION PANEL (shown when comment button clicked) -->
                     <VBox fx:id="discussionPanel" visible="false" managed="false"
-                          spacing="0" prefWidth="320"
-                          style="-fx-background-color: rgba(0,212,255,0.03);
-                 -fx-border-color: rgba(0,212,255,0.2);
-                 -fx-border-width: 0 0 0 1;">
+                          spacing="0" prefWidth="320" styleClass="discussion-panel">
 
                         <!-- Header -->
-                        <HBox alignment="CENTER_LEFT" spacing="8"
-                              style="-fx-padding: 10 12 10 12;
-                     -fx-border-color: transparent transparent rgba(0,212,255,0.15) transparent;
-                     -fx-border-width: 0 0 1 0;
-                     -fx-background-color: rgba(0,212,255,0.05);">
+                        <HBox alignment="CENTER_LEFT" spacing="8" styleClass="discussion-header">
                             <Label text="💬" style="-fx-font-size: 13px;"/>
-                            <Label fx:id="discussionTitleLabel" text="Discussion"
-                                   style="-fx-text-fill: #00d4ff; -fx-font-size: 11px;
-                          -fx-font-family: 'Courier New'; -fx-font-weight: bold;"
-                                   wrapText="true"/>
+                            <Label fx:id="discussionTitleLabel" text="Discussion" styleClass="discussion-title" wrapText="true"/>
                             <Pane HBox.hgrow="ALWAYS"/>
-                            <Button text="✕" onAction="#handleCloseDiscussion"
-                                    style="-fx-background-color: transparent;
-                           -fx-text-fill: rgba(255,255,255,0.5);
-                           -fx-font-size: 12px; -fx-cursor: hand;
-                           -fx-border-width: 0; -fx-padding: 2 6 2 6;"/>
+                            <Button text="✕" onAction="#handleCloseDiscussion" styleClass="discussion-close-btn"/>
                         </HBox>
 
                         <!-- Scrollable content -->
-                        <ScrollPane VBox.vgrow="ALWAYS" fitToWidth="true" hbarPolicy="NEVER"
-                                    style="-fx-background-color: transparent; -fx-background: transparent;
-                           -fx-border-width: 0;">
+                        <ScrollPane VBox.vgrow="ALWAYS" fitToWidth="true" hbarPolicy="NEVER" styleClass="discussion-scroll">
                             <VBox spacing="10" style="-fx-padding: 12;">
 
                                 <!-- Description -->
-                                <Label text="Description"
-                                       style="-fx-text-fill: rgba(0,212,255,0.6); -fx-font-size: 10px;
-                              -fx-font-family: 'Courier New'; -fx-font-weight: bold;"/>
-                                <TextArea fx:id="discussionDescArea"
-                                          promptText="Add a description..."
-                                          prefHeight="70" wrapText="true"
-                                          style="-fx-control-inner-background: #0a1628;
-                                 -fx-background-color: #0a1628;
-                                 -fx-text-fill: #ffffff;
-                                 -fx-prompt-text-fill: rgba(0,212,255,0.3);
-                                 -fx-border-color: rgba(0,212,255,0.22);
-                                 -fx-border-width: 1; -fx-border-radius: 6;
-                                 -fx-background-radius: 6;
-                                 -fx-font-family: 'Courier New'; -fx-font-size: 11px;"/>
-                                <Button text="Save Description" onAction="#handleSaveDescription"
-                                        maxWidth="Infinity"
-                                        style="-fx-background-color: rgba(0,212,255,0.08);
-                               -fx-text-fill: #00d4ff; -fx-font-size: 11px;
-                               -fx-font-family: 'Courier New'; -fx-background-radius: 6;
-                               -fx-padding: 7 12 7 12; -fx-cursor: hand;
-                               -fx-border-color: rgba(0,212,255,0.3);
-                               -fx-border-width: 1; -fx-border-radius: 6;"/>
+                                <Label text="Description" styleClass="discussion-section-label"/>
+                                <TextArea fx:id="discussionDescArea" promptText="Add a description..." prefHeight="70" wrapText="true" styleClass="discussion-desc-area"/>
+                                <Button text="Save Description" onAction="#handleSaveDescription" maxWidth="Infinity" styleClass="discussion-action-btn"/>
 
                                 <!-- Comments label -->
-                                <Label text="Comments"
-                                       style="-fx-text-fill: rgba(0,212,255,0.6); -fx-font-size: 10px;
-                              -fx-font-family: 'Courier New'; -fx-font-weight: bold;"/>
+                                <Label text="Comments" styleClass="discussion-section-label"/>
 
                                 <!-- Comment bubbles go here dynamically -->
                                 <VBox fx:id="commentsBox" spacing="6"/>
@@ -227,29 +171,9 @@
                         </ScrollPane>
 
                         <!-- Comment input fixed at bottom -->
-                        <HBox spacing="6"
-                              style="-fx-padding: 8 10 10 10;
-                     -fx-border-color: rgba(0,212,255,0.15) transparent transparent transparent;
-                     -fx-border-width: 1 0 0 0;
-                     -fx-background-color: rgba(0,212,255,0.03);">
-                            <TextField fx:id="commentInputField"
-                                       promptText="Write a comment..."
-                                       HBox.hgrow="ALWAYS"
-                                       style="-fx-background-color: rgba(0,212,255,0.05);
-                              -fx-text-fill: #ffffff;
-                              -fx-prompt-text-fill: rgba(0,212,255,0.3);
-                              -fx-border-color: rgba(0,212,255,0.22);
-                              -fx-border-width: 1; -fx-border-radius: 6;
-                              -fx-background-radius: 6;
-                              -fx-font-family: 'Courier New'; -fx-font-size: 11px;
-                              -fx-padding: 6 8 6 8;"/>
-                            <Button text="Send" onAction="#handleSendComment"
-                                    style="-fx-background-color: rgba(0,212,255,0.15);
-                           -fx-text-fill: #00d4ff; -fx-font-size: 11px;
-                           -fx-font-family: 'Courier New'; -fx-background-radius: 6;
-                           -fx-padding: 6 10 6 10; -fx-cursor: hand;
-                           -fx-border-color: #00d4ff; -fx-border-width: 1;
-                           -fx-border-radius: 6;"/>
+                        <HBox spacing="6" styleClass="comment-input-bar">
+                            <TextField fx:id="commentInputField" promptText="Write a comment..." HBox.hgrow="ALWAYS" styleClass="discussion-input-field"/>
+                            <Button text="Send" onAction="#handleSendComment" styleClass="discussion-send-btn"/>
                         </HBox>
 
                     </VBox>
@@ -261,79 +185,39 @@
             <!-- ═══════════════════════════════════════════════════════════════ -->
             <!-- VIDEO PLAYER VIEW                                               -->
             <!-- ═══════════════════════════════════════════════════════════════ -->
-            <VBox fx:id="videoView" VBox.vgrow="ALWAYS" visible="false" managed="false"
-                  style="-fx-background-color: #000000;">
+            <VBox fx:id="videoView" VBox.vgrow="ALWAYS" visible="false" managed="false" styleClass="video-view">
 
                 <!-- Header -->
-                <HBox alignment="CENTER_LEFT" spacing="12"
-                      style="-fx-padding: 10 16 10 16; -fx-background-color: #0a0e1a;
-                             -fx-border-color: transparent transparent rgba(0,212,255,0.2) transparent;
-                             -fx-border-width: 0 0 1 0;">
+                <HBox alignment="CENTER_LEFT" spacing="12" styleClass="viewer-header">
                     <Label text="🎬" style="-fx-font-size: 16px;"/>
-                    <Label fx:id="videoTitleLabel" text=""
-                           style="-fx-text-fill: #ffffff; -fx-font-size: 13px;
-                                  -fx-font-weight: bold; -fx-font-family: 'Courier New';"/>
+                    <Label fx:id="videoTitleLabel" text="" styleClass="viewer-title"/>
                     <Pane HBox.hgrow="ALWAYS"/>
-                    <Button text="◀ Back to Files" onAction="#handleBackFromVideo"
-                            style="-fx-background-color: rgba(0,212,255,0.08);
-                                   -fx-text-fill: #00d4ff; -fx-font-size: 11px;
-                                   -fx-font-family: 'Courier New'; -fx-background-radius: 7;
-                                   -fx-padding: 7 14 7 14; -fx-cursor: hand;
-                                   -fx-border-color: rgba(0,212,255,0.3);
-                                   -fx-border-width: 1; -fx-border-radius: 7;"/>
+                    <Button text="◀ Back to Files" onAction="#handleBackFromVideo" styleClass="viewer-action-btn"/>
                 </HBox>
 
                 <!-- Video display -->
-                <StackPane VBox.vgrow="ALWAYS" maxHeight="380"
-                           style="-fx-background-color: #000000;">
+                <StackPane VBox.vgrow="ALWAYS" maxHeight="380" styleClass="video-display">
                     <MediaView fx:id="mediaView" preserveRatio="true"/>
                 </StackPane>
 
                 <!-- Seek bar -->
-                <VBox style="-fx-padding: 10 16 4 16; -fx-background-color: #0a0e1a;">
-                    <Slider fx:id="seekSlider" min="0" value="0" style="-fx-accent: #00d4ff;"/>
+                <VBox styleClass="viewer-seek-bar">
+                    <Slider fx:id="seekSlider" min="0" value="0" styleClass="viewer-slider"/>
                     <HBox>
-                        <Label fx:id="currentTimeLabel" text="00:00"
-                               style="-fx-text-fill: rgba(0,212,255,0.7);
-                                      -fx-font-size: 11px; -fx-font-family: 'Courier New';"/>
+                        <Label fx:id="currentTimeLabel" text="00:00" styleClass="viewer-subtext"/>
                         <Pane HBox.hgrow="ALWAYS"/>
-                        <Label fx:id="totalTimeLabel" text="00:00"
-                               style="-fx-text-fill: rgba(0,212,255,0.7);
-                                      -fx-font-size: 11px; -fx-font-family: 'Courier New';"/>
+                        <Label fx:id="totalTimeLabel" text="00:00" styleClass="viewer-subtext"/>
                     </HBox>
                 </VBox>
 
                 <!-- Playback controls -->
-                <HBox alignment="CENTER" spacing="12"
-                      style="-fx-padding: 10 16 14 16; -fx-background-color: #0a0e1a;
-                             -fx-border-color: rgba(0,212,255,0.15) transparent transparent transparent;
-                             -fx-border-width: 1 0 0 0;">
-                    <Button text="⏮ -10s" onAction="#handleVideoRewind"
-                            style="-fx-background-color: rgba(0,212,255,0.08);
-                                   -fx-text-fill: #00d4ff; -fx-font-size: 12px;
-                                   -fx-font-family: 'Courier New'; -fx-background-radius: 8;
-                                   -fx-padding: 8 14 8 14; -fx-cursor: hand;
-                                   -fx-border-color: rgba(0,212,255,0.3);
-                                   -fx-border-width: 1; -fx-border-radius: 8;"/>
-                    <Button fx:id="playPauseBtn" text="▶" onAction="#handleVideoPlayPause"
-                            style="-fx-background-color: #00d4ff; -fx-text-fill: #020408;
-                                   -fx-font-size: 16px; -fx-font-weight: bold;
-                                   -fx-background-radius: 50; -fx-padding: 8 18 8 18;
-                                   -fx-cursor: hand;
-                                   -fx-effect: dropshadow(gaussian, #00d4ff, 15, 0.6, 0, 0);"/>
-                    <Button text="+10s ⏭" onAction="#handleVideoForward"
-                            style="-fx-background-color: rgba(0,212,255,0.08);
-                                   -fx-text-fill: #00d4ff; -fx-font-size: 12px;
-                                   -fx-font-family: 'Courier New'; -fx-background-radius: 8;
-                                   -fx-padding: 8 14 8 14; -fx-cursor: hand;
-                                   -fx-border-color: rgba(0,212,255,0.3);
-                                   -fx-border-width: 1; -fx-border-radius: 8;"/>
+                <HBox alignment="CENTER" spacing="12" styleClass="video-control-bar">
+                    <Button text="⏮ -10s" onAction="#handleVideoRewind" styleClass="viewer-action-btn"/>
+                    <Button fx:id="playPauseBtn" text="▶" onAction="#handleVideoPlayPause" styleClass="viewer-play-btn"/>
+                    <Button text="+10s ⏭" onAction="#handleVideoForward" styleClass="viewer-action-btn"/>
                     <Pane HBox.hgrow="ALWAYS"/>
-                    <Button fx:id="muteBtn" text="🔊" onAction="#handleVideoMute"
-                            style="-fx-background-color: transparent; -fx-text-fill: #00d4ff;
-                                   -fx-font-size: 16px; -fx-cursor: hand; -fx-border-width: 0;"/>
-                    <Slider fx:id="volumeSlider" min="0" max="100" value="80"
-                            prefWidth="100" style="-fx-accent: #00d4ff;"/>
+                    <Button fx:id="muteBtn" text="🔊" onAction="#handleVideoMute" styleClass="viewer-icon-btn"/>
+                    <Slider fx:id="volumeSlider" min="0" max="100" value="80" prefWidth="100" styleClass="viewer-slider"/>
                 </HBox>
 
             </VBox>
@@ -341,89 +225,33 @@
             <!-- ═══════════════════════════════════════════════════════════════ -->
             <!-- IMAGE VIEWER                                                    -->
             <!-- ═══════════════════════════════════════════════════════════════ -->
-            <VBox fx:id="imageView" VBox.vgrow="ALWAYS" visible="false" managed="false"
-                  style="-fx-background-color: #060a12;">
+            <VBox fx:id="imageView" VBox.vgrow="ALWAYS" visible="false" managed="false" styleClass="image-view">
 
                 <!-- Header -->
-                <HBox alignment="CENTER_LEFT" spacing="12"
-                      style="-fx-padding: 10 16 10 16; -fx-background-color: #0a0e1a;
-                             -fx-border-color: transparent transparent rgba(0,212,255,0.2) transparent;
-                             -fx-border-width: 0 0 1 0;">
+                <HBox alignment="CENTER_LEFT" spacing="12" styleClass="viewer-header">
                     <Label text="🖼" style="-fx-font-size: 16px;"/>
-                    <Label fx:id="imageTitleLabel" text=""
-                           style="-fx-text-fill: #ffffff; -fx-font-size: 13px;
-                                  -fx-font-weight: bold; -fx-font-family: 'Courier New';"/>
+                    <Label fx:id="imageTitleLabel" text="" styleClass="viewer-title"/>
                     <Pane HBox.hgrow="ALWAYS"/>
-                    <Button text="🖥 Open Externally" onAction="#handleOpenImageExternal"
-                            style="-fx-background-color: rgba(0,212,255,0.08);
-                                   -fx-text-fill: #00d4ff; -fx-font-size: 11px;
-                                   -fx-font-family: 'Courier New'; -fx-background-radius: 7;
-                                   -fx-padding: 7 12 7 12; -fx-cursor: hand;
-                                   -fx-border-color: rgba(0,212,255,0.3);
-                                   -fx-border-width: 1; -fx-border-radius: 7;"/>
-                    <Button text="◀ Back to Files" onAction="#handleBackFromImage"
-                            style="-fx-background-color: rgba(0,212,255,0.08);
-                                   -fx-text-fill: #00d4ff; -fx-font-size: 11px;
-                                   -fx-font-family: 'Courier New'; -fx-background-radius: 7;
-                                   -fx-padding: 7 14 7 14; -fx-cursor: hand;
-                                   -fx-border-color: rgba(0,212,255,0.3);
-                                   -fx-border-width: 1; -fx-border-radius: 7;"/>
-                    <Button text="◀ Prev" onAction="#handlePdfPrevPage"
-                            style="-fx-background-color: rgba(0,212,255,0.08);
-               -fx-text-fill: #00d4ff; -fx-font-size: 11px;
-               -fx-font-family: 'Courier New'; -fx-background-radius: 7;
-               -fx-padding: 7 12 7 12; -fx-cursor: hand;
-               -fx-border-color: rgba(0,212,255,0.3);
-               -fx-border-width: 1; -fx-border-radius: 7;"/>
-                    <Button text="Next ▶" onAction="#handlePdfNextPage"
-                            style="-fx-background-color: rgba(0,212,255,0.08);
-               -fx-text-fill: #00d4ff; -fx-font-size: 11px;
-               -fx-font-family: 'Courier New'; -fx-background-radius: 7;
-               -fx-padding: 7 12 7 12; -fx-cursor: hand;
-               -fx-border-color: rgba(0,212,255,0.3);
-               -fx-border-width: 1; -fx-border-radius: 7;"/>
+                    <Button text="🖥 Open Externally" onAction="#handleOpenImageExternal" styleClass="viewer-action-btn"/>
+                    <Button text="◀ Back to Files" onAction="#handleBackFromImage" styleClass="viewer-action-btn"/>
+                    <Button text="◀ Prev" onAction="#handlePdfPrevPage" styleClass="viewer-action-btn"/>
+                    <Button text="Next ▶" onAction="#handlePdfNextPage" styleClass="viewer-action-btn"/>
                 </HBox>
 
                 <!-- Image display area -->
-                <ScrollPane VBox.vgrow="ALWAYS" fitToWidth="true" fitToHeight="false"
-                            style="-fx-background-color: #060a12; -fx-background: #060a12;
-                   -fx-border-width: 0;">
-                    <StackPane style="-fx-background-color: #060a12; -fx-padding: 20;"
-                               minWidth="400" minHeight="300"
-                               alignment="CENTER">
+                <ScrollPane VBox.vgrow="ALWAYS" fitToWidth="true" fitToHeight="false" styleClass="image-scroll">
+                    <StackPane styleClass="image-display" minWidth="400" minHeight="300" alignment="CENTER">
                         <ImageView fx:id="imageViewFull" preserveRatio="true"/>
                     </StackPane>
                 </ScrollPane>
 
                 <!-- Zoom controls -->
-                <HBox alignment="CENTER" spacing="12"
-                      style="-fx-padding: 10 16 14 16; -fx-background-color: #0a0e1a;
-                             -fx-border-color: rgba(0,212,255,0.15) transparent transparent transparent;
-                             -fx-border-width: 1 0 0 0;">
-                    <Button text="🔍−" onAction="#handleZoomOut"
-                            style="-fx-background-color: rgba(0,212,255,0.08);
-                                   -fx-text-fill: #00d4ff; -fx-font-size: 14px;
-                                   -fx-background-radius: 8; -fx-padding: 6 14 6 14;
-                                   -fx-cursor: hand; -fx-border-color: rgba(0,212,255,0.3);
-                                   -fx-border-width: 1; -fx-border-radius: 8;"/>
-                    <Slider fx:id="zoomSlider" min="10" max="400" value="100"
-                            prefWidth="200" style="-fx-accent: #00d4ff;"/>
-                    <Button text="🔍+" onAction="#handleZoomIn"
-                            style="-fx-background-color: rgba(0,212,255,0.08);
-                                   -fx-text-fill: #00d4ff; -fx-font-size: 14px;
-                                   -fx-background-radius: 8; -fx-padding: 6 14 6 14;
-                                   -fx-cursor: hand; -fx-border-color: rgba(0,212,255,0.3);
-                                   -fx-border-width: 1; -fx-border-radius: 8;"/>
-                    <Button text="⊡ Reset" onAction="#handleZoomReset"
-                            style="-fx-background-color: rgba(0,212,255,0.08);
-                                   -fx-text-fill: #00d4ff; -fx-font-size: 11px;
-                                   -fx-font-family: 'Courier New'; -fx-background-radius: 8;
-                                   -fx-padding: 7 12 7 12; -fx-cursor: hand;
-                                   -fx-border-color: rgba(0,212,255,0.3);
-                                   -fx-border-width: 1; -fx-border-radius: 8;"/>
-                    <Label fx:id="zoomLabel" text="100%"
-                           style="-fx-text-fill: rgba(0,212,255,0.7); -fx-font-size: 12px;
-                                  -fx-font-family: 'Courier New'; -fx-min-width: 45px;"/>
+                <HBox alignment="CENTER" spacing="12" styleClass="video-control-bar">
+                    <Button text="🔍−" onAction="#handleZoomOut" styleClass="viewer-action-btn"/>
+                    <Slider fx:id="zoomSlider" min="10" max="400" value="100" prefWidth="200" styleClass="viewer-slider"/>
+                    <Button text="🔍+" onAction="#handleZoomIn" styleClass="viewer-action-btn"/>
+                    <Button text="⊡ Reset" onAction="#handleZoomReset" styleClass="viewer-action-btn"/>
+                    <Label fx:id="zoomLabel" text="100%" styleClass="viewer-subtext"/>
                 </HBox>
 
             </VBox>
@@ -431,36 +259,16 @@
             <!-- ═══════════════════════════════════════════════════════════════ -->
             <!-- PDF VIEWER                                                      -->
             <!-- ═══════════════════════════════════════════════════════════════ -->
-            <VBox fx:id="pdfView" VBox.vgrow="ALWAYS" visible="false" managed="false"
-                  style="-fx-background-color: #060a12;">
+            <VBox fx:id="pdfView" VBox.vgrow="ALWAYS" visible="false" managed="false" styleClass="pdf-view">
 
                 <!-- Header -->
-                <HBox alignment="CENTER_LEFT" spacing="12"
-                      style="-fx-padding: 10 16 10 16; -fx-background-color: #0a0e1a;
-                             -fx-border-color: transparent transparent rgba(0,212,255,0.2) transparent;
-                             -fx-border-width: 0 0 1 0;">
+                <HBox alignment="CENTER_LEFT" spacing="12" styleClass="viewer-header">
                     <Label text="📕" style="-fx-font-size: 16px;"/>
-                    <Label fx:id="pdfTitleLabel" text=""
-                           style="-fx-text-fill: #ffffff; -fx-font-size: 13px;
-                                  -fx-font-weight: bold; -fx-font-family: 'Courier New';"/>
+                    <Label fx:id="pdfTitleLabel" text="" styleClass="viewer-title"/>
                     <Pane HBox.hgrow="ALWAYS"/>
-                    <Label fx:id="pdfPageLabel" text=""
-                           style="-fx-text-fill: rgba(0,212,255,0.6); -fx-font-size: 11px;
-                                  -fx-font-family: 'Courier New';"/>
-                    <Button text="🖥 Open Externally" onAction="#handleOpenPdfExternal"
-                            style="-fx-background-color: rgba(0,212,255,0.08);
-                                   -fx-text-fill: #00d4ff; -fx-font-size: 11px;
-                                   -fx-font-family: 'Courier New'; -fx-background-radius: 7;
-                                   -fx-padding: 7 12 7 12; -fx-cursor: hand;
-                                   -fx-border-color: rgba(0,212,255,0.3);
-                                   -fx-border-width: 1; -fx-border-radius: 7;"/>
-                    <Button text="◀ Back to Files" onAction="#handleBackFromPdf"
-                            style="-fx-background-color: rgba(0,212,255,0.08);
-                                   -fx-text-fill: #00d4ff; -fx-font-size: 11px;
-                                   -fx-font-family: 'Courier New'; -fx-background-radius: 7;
-                                   -fx-padding: 7 14 7 14; -fx-cursor: hand;
-                                   -fx-border-color: rgba(0,212,255,0.3);
-                                   -fx-border-width: 1; -fx-border-radius: 7;"/>
+                    <Label fx:id="pdfPageLabel" text="" styleClass="viewer-subtext"/>
+                    <Button text="🖥 Open Externally" onAction="#handleOpenPdfExternal" styleClass="viewer-action-btn"/>
+                    <Button text="◀ Back to Files" onAction="#handleBackFromPdf" styleClass="viewer-action-btn"/>
                 </HBox>
 
                 <!-- WebView renders the PDF via browser's built-in renderer -->

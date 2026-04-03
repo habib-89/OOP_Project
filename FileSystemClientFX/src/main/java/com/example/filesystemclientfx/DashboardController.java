@@ -181,19 +181,38 @@ public class DashboardController {
         String text = parts.length > 1 ? parts[1] : raw;
 
         VBox bubble = new VBox(2);
-        bubble.setStyle("-fx-background-color: rgba(0,212,255,0.08);" +
-                "-fx-background-radius: 8;" +
-                "-fx-padding: 6 10 6 10;" +
-                "-fx-border-color: rgba(0,212,255,0.15);" +
-                "-fx-border-width: 1; -fx-border-radius: 8;");
+
+        if (isDarkTheme) {
+            bubble.setStyle("-fx-background-color: rgba(0,212,255,0.08);" +
+                    "-fx-background-radius: 8;" +
+                    "-fx-padding: 6 10 6 10;" +
+                    "-fx-border-color: rgba(0,212,255,0.15);" +
+                    "-fx-border-width: 1; -fx-border-radius: 8;");
+        } else {
+            bubble.setStyle("-fx-background-color: rgba(201,196,213,0.38);" +
+                    "-fx-background-radius: 10;" +
+                    "-fx-padding: 6 10 6 10;" +
+                    "-fx-border-color: #a9a3bb;" +
+                    "-fx-border-width: 1; -fx-border-radius: 10;");
+        }
 
         Label userLabel = new Label("User");
-        userLabel.setStyle("-fx-text-fill: #00d4ff; -fx-font-size: 9px;" +
-                "-fx-font-family: 'Courier New'; -fx-font-weight: bold;");
+        if (isDarkTheme) {
+            userLabel.setStyle("-fx-text-fill: #00d4ff; -fx-font-size: 10px;" +
+                    "-fx-font-family: 'Courier New'; -fx-font-weight: bold;");
+        } else {
+            userLabel.setStyle("-fx-text-fill: #5d5a78; -fx-font-size: 10px;" +
+                    "-fx-font-family: 'Courier New'; -fx-font-weight: bold;");
+        }
 
         Label textLabel = new Label(user + " | " + text);
-        textLabel.setStyle("-fx-text-fill: rgba(255,255,255,0.85); -fx-font-size: 11px;" +
-                "-fx-font-family: 'Courier New';");
+        if (isDarkTheme) {
+            textLabel.setStyle("-fx-text-fill: rgba(255,255,255,0.85); -fx-font-size: 12px;" +
+                    "-fx-font-family: 'Courier New';");
+        } else {
+            textLabel.setStyle("-fx-text-fill: #263631; -fx-font-size: 12px;" +
+                    "-fx-font-family: 'Courier New';");
+        }
         textLabel.setWrapText(true);
 
         bubble.getChildren().addAll(userLabel, textLabel);
@@ -337,23 +356,31 @@ public class DashboardController {
         if (isDarkTheme) {
             profileBorderCircle.setStyle("-fx-fill: transparent; -fx-stroke: #00d4ff; -fx-stroke-width: 3;");
         } else {
-            profileBorderCircle.setStyle("-fx-fill: transparent; -fx-stroke: #6f7f76; -fx-stroke-width: 3;");
+            profileBorderCircle.setStyle("-fx-fill: transparent; -fx-stroke: #7d8781; -fx-stroke-width: 3;");
         }
     }
 
     private String bookmarkButtonStyle() {
         if (isDarkTheme) {
             return "-fx-background-color: rgba(0,212,255,0.08);" +
-                    "-fx-text-fill: rgba(255,255,255,0.8); -fx-font-size: 11px;" +
-                    "-fx-font-family: 'Courier New'; -fx-cursor: hand;" +
-                    "-fx-background-radius: 5; -fx-padding: 3 10 3 10;" +
-                    "-fx-border-color: rgba(0,212,255,0.2); -fx-border-width: 1; -fx-border-radius: 5;";
+                    "-fx-text-fill: rgba(255,255,255,0.85);" +
+                    "-fx-font-size: 13px;" +
+                    "-fx-font-family: 'Courier New';" +
+                    "-fx-background-radius: 8;" +
+                    "-fx-padding: 6 14 6 14;" +
+                    "-fx-border-color: rgba(0,212,255,0.3);" +
+                    "-fx-border-width: 1;" +
+                    "-fx-border-radius: 8;";
         } else {
-            return "-fx-background-color: linear-gradient(to bottom, #d9dbd5, #bcc2bc);" +
-                    "-fx-text-fill: #2f3f39; -fx-font-size: 11px;" +
-                    "-fx-font-family: 'Courier New'; -fx-cursor: hand;" +
-                    "-fx-background-radius: 12; -fx-padding: 4 10 4 10;" +
-                    "-fx-border-color: #979f98; -fx-border-width: 1; -fx-border-radius: 12;";
+            return "-fx-background-color: linear-gradient(to bottom, #d8dad4, #bcc2bc);" +
+                    "-fx-text-fill: #263631;" +
+                    "-fx-font-size: 13px;" +
+                    "-fx-font-family: 'Courier New';" +
+                    "-fx-background-radius: 14;" +
+                    "-fx-padding: 6 14 6 14;" +
+                    "-fx-border-color: #8e9892;" +
+                    "-fx-border-width: 1;" +
+                    "-fx-border-radius: 14;";
         }
     }
 
@@ -1432,6 +1459,10 @@ public class DashboardController {
         updateProfileBorderStyle();
         refreshTabStyles();
         loadBookmarksBar();
+
+        if (currentDiscussionFile != null && discussionPanel != null && discussionPanel.isVisible()) {
+            loadDiscussionInPanel(currentDiscussionFile);
+        }
     }
 
     // =========================================================================

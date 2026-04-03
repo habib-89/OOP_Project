@@ -840,3 +840,490 @@
     -fx-effect: dropshadow(gaussian, rgba(0,212,255,0.35), 8, 0, 0, 0);
 }
 
+
+
+
+
+/* ===== VIEWERS + DISCUSSION THEMING ===== */
+
+/* shared viewer containers */
+.video-view,
+.image-view,
+.pdf-view,
+.discussion-panel {
+    -fx-background-color: rgba(0, 212, 255, 0.03);
+    -fx-border-color: rgba(0, 212, 255, 0.18);
+    -fx-border-width: 1 0 0 0;
+}
+
+.viewer-title,
+.image-title,
+.pdf-title,
+.discussion-title {
+    -fx-text-fill: #ffffff;
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-font-family: "Courier New";
+}
+
+.viewer-subtext,
+.pdf-page-label {
+    -fx-text-fill: rgba(0, 212, 255, 0.72);
+    -fx-font-size: 12px;
+    -fx-font-family: "Courier New";
+}
+
+.video-control-bar,
+.image-control-bar,
+.pdf-control-bar,
+.comment-input-bar {
+    -fx-background-color: rgba(0, 212, 255, 0.05);
+    -fx-background-radius: 12;
+    -fx-border-color: rgba(0, 212, 255, 0.18);
+    -fx-border-radius: 12;
+    -fx-padding: 10;
+}
+
+.video-view .button,
+.image-view .button,
+.pdf-view .button,
+.discussion-panel .button {
+    -fx-background-color: rgba(0, 212, 255, 0.08);
+    -fx-text-fill: rgba(255,255,255,0.9);
+    -fx-border-color: rgba(0, 212, 255, 0.26);
+    -fx-border-radius: 10;
+    -fx-background-radius: 10;
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-font-family: "Courier New";
+    -fx-padding: 7 12 7 12;
+}
+
+.video-view .button:hover,
+.image-view .button:hover,
+.pdf-view .button:hover,
+.discussion-panel .button:hover {
+    -fx-background-color: rgba(0, 212, 255, 0.15);
+    -fx-text-fill: #00d4ff;
+}
+
+.video-view .slider .track,
+.image-view .slider .track,
+.pdf-view .slider .track {
+    -fx-background-color: rgba(255,255,255,0.16);
+    -fx-background-radius: 6;
+}
+
+.video-view .slider .thumb,
+.image-view .slider .thumb,
+.pdf-view .slider .thumb {
+    -fx-background-color: #00d4ff;
+}
+
+.video-view .label,
+.image-view .label,
+.pdf-view .label,
+.discussion-panel .label {
+    -fx-text-fill: rgba(255,255,255,0.86);
+}
+
+/* ===== LIGHT MODE viewer overrides ===== */
+.root-light .video-view,
+.root-light .image-view,
+.root-light .pdf-view,
+.root-light .discussion-panel {
+    -fx-background-color: #cacbc5;
+    -fx-border-color: #9ea69f;
+}
+
+.root-light .viewer-title,
+.root-light .image-title,
+.root-light .pdf-title,
+.root-light .discussion-title {
+    -fx-text-fill: #25342f;
+}
+
+.root-light .viewer-subtext,
+.root-light .pdf-page-label,
+.root-light .video-view .label,
+.root-light .image-view .label,
+.root-light .pdf-view .label,
+.root-light .discussion-panel .label {
+    -fx-text-fill: #40504a;
+}
+
+.root-light .video-control-bar,
+.root-light .image-control-bar,
+.root-light .pdf-control-bar,
+.root-light .comment-input-bar {
+    -fx-background-color: #d3d3cd;
+    -fx-border-color: #9ea69f;
+}
+
+.root-light .video-view .button,
+.root-light .image-view .button,
+.root-light .pdf-view .button,
+.root-light .discussion-panel .button {
+    -fx-background-color: linear-gradient(to bottom, #d8dad4, #bcc2bc);
+    -fx-text-fill: #263631;
+    -fx-border-color: #8e9892;
+}
+
+.root-light .video-view .button:hover,
+.root-light .image-view .button:hover,
+.root-light .pdf-view .button:hover,
+.root-light .discussion-panel .button:hover {
+    -fx-background-color: linear-gradient(to bottom, #d1d4ce, #b1b8b1);
+    -fx-text-fill: #1f2e29;
+}
+
+.root-light .video-view .slider .track,
+.root-light .image-view .slider .track,
+.root-light .pdf-view .slider .track {
+    -fx-background-color: #aeb6b0;
+}
+
+.root-light .video-view .slider .thumb,
+.root-light .image-view .slider .thumb,
+.root-light .pdf-view .slider .thumb {
+    -fx-background-color: #6f7f76;
+}
+
+/* Discussion-specific surfaces */
+.root-light .discussion-box {
+    -fx-background-color: rgba(201, 196, 213, 0.45);
+    -fx-border-color: #a9a3bb;
+}
+
+.root-light .discussion-panel .text-field,
+.root-light .discussion-panel .text-area {
+    -fx-background-color: #dddcd6;
+    -fx-text-fill: #25342f;
+    -fx-prompt-text-fill: #6d7973;
+    -fx-border-color: #98a29b;
+}
+
+.root-light .discussion-panel .text-area .content {
+    -fx-background-color: #dddcd6;
+}
+
+.root-light .discussion-panel .list-view {
+    -fx-background-color: #d8d6d0;
+    -fx-border-color: #98a29b;
+}
+
+.root-light .discussion-panel .list-cell {
+    -fx-text-fill: #25342f;
+}
+
+
+
+/* ===== FXML THEME-AWARE PANELS ===== */
+.tab-bar {
+    -fx-background-color: #0a0e1a;
+    -fx-border-color: transparent transparent rgba(0,212,255,0.15) transparent;
+    -fx-border-width: 0 0 1 0;
+    -fx-padding: 5 10 0 10;
+}
+.tab-add-btn {
+    -fx-background-color: transparent;
+    -fx-text-fill: rgba(0,212,255,0.6);
+    -fx-font-size: 16px;
+    -fx-cursor: hand;
+    -fx-border-width: 0;
+    -fx-padding: 2 10 2 10;
+}
+.bookmarks-bar {
+    -fx-padding: 6 16 6 16;
+    -fx-background-color: rgba(0,212,255,0.03);
+    -fx-border-color: transparent transparent rgba(0,212,255,0.12) transparent;
+    -fx-border-width: 0 0 1 0;
+}
+.bookmarks-icon {
+    -fx-text-fill: rgba(0,212,255,0.5);
+    -fx-font-size: 11px;
+}
+.bookmarks-scroll {
+    -fx-background-color: transparent;
+    -fx-background: transparent;
+    -fx-border-width: 0;
+    -fx-padding: 0;
+}
+.bookmarks-scroll > .viewport { -fx-background-color: transparent; }
+.bookmarks-buttons-box { -fx-padding: 0; }
+.bookmark-add-btn {
+    -fx-background-color: transparent;
+    -fx-text-fill: rgba(0,212,255,0.5);
+    -fx-font-size: 10px;
+    -fx-font-family: "Courier New";
+    -fx-cursor: hand;
+    -fx-border-color: rgba(0,212,255,0.2);
+    -fx-border-width: 1;
+    -fx-border-radius: 5;
+    -fx-background-radius: 5;
+    -fx-padding: 3 8 3 8;
+}
+.viewer-header {
+    -fx-padding: 10 16 10 16;
+    -fx-background-color: #0a0e1a;
+    -fx-border-color: transparent transparent rgba(0,212,255,0.2) transparent;
+    -fx-border-width: 0 0 1 0;
+}
+.viewer-title {
+    -fx-text-fill: #ffffff;
+    -fx-font-size: 13px;
+    -fx-font-weight: bold;
+    -fx-font-family: "Courier New";
+}
+.viewer-subtext {
+    -fx-text-fill: rgba(0,212,255,0.7);
+    -fx-font-size: 11px;
+    -fx-font-family: "Courier New";
+}
+.viewer-action-btn {
+    -fx-background-color: rgba(0,212,255,0.08);
+    -fx-text-fill: #00d4ff;
+    -fx-font-size: 11px;
+    -fx-font-family: "Courier New";
+    -fx-background-radius: 7;
+    -fx-padding: 7 12 7 12;
+    -fx-cursor: hand;
+    -fx-border-color: rgba(0,212,255,0.3);
+    -fx-border-width: 1;
+    -fx-border-radius: 7;
+}
+.viewer-play-btn {
+    -fx-background-color: #00d4ff;
+    -fx-text-fill: #020408;
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+    -fx-background-radius: 50;
+    -fx-padding: 8 18 8 18;
+    -fx-cursor: hand;
+}
+.viewer-icon-btn {
+    -fx-background-color: transparent;
+    -fx-text-fill: #00d4ff;
+    -fx-font-size: 16px;
+    -fx-cursor: hand;
+    -fx-border-width: 0;
+}
+.viewer-slider { -fx-accent: #00d4ff; }
+.video-view { -fx-background-color: #000000; }
+.video-display { -fx-background-color: #000000; }
+.viewer-seek-bar {
+    -fx-padding: 10 16 4 16;
+    -fx-background-color: #0a0e1a;
+}
+.video-control-bar, .image-control-bar {
+    -fx-padding: 10 16 14 16;
+    -fx-background-color: #0a0e1a;
+    -fx-border-color: rgba(0,212,255,0.15) transparent transparent transparent;
+    -fx-border-width: 1 0 0 0;
+}
+.image-view, .pdf-view { -fx-background-color: #060a12; }
+.image-scroll {
+    -fx-background-color: #060a12;
+    -fx-background: #060a12;
+    -fx-border-width: 0;
+}
+.image-scroll > .viewport { -fx-background-color: #060a12; }
+.image-display {
+    -fx-background-color: #060a12;
+    -fx-padding: 20;
+}
+.discussion-panel {
+    -fx-background-color: rgba(0,212,255,0.03);
+    -fx-border-color: rgba(0,212,255,0.2);
+    -fx-border-width: 0 0 0 1;
+}
+.discussion-header {
+    -fx-padding: 10 12 10 12;
+    -fx-border-color: transparent transparent rgba(0,212,255,0.15) transparent;
+    -fx-border-width: 0 0 1 0;
+    -fx-background-color: rgba(0,212,255,0.05);
+}
+.discussion-title {
+    -fx-text-fill: #00d4ff;
+    -fx-font-size: 11px;
+    -fx-font-family: "Courier New";
+    -fx-font-weight: bold;
+}
+.discussion-close-btn {
+    -fx-background-color: transparent;
+    -fx-text-fill: rgba(255,255,255,0.5);
+    -fx-font-size: 12px;
+    -fx-cursor: hand;
+    -fx-border-width: 0;
+    -fx-padding: 2 6 2 6;
+}
+.discussion-scroll {
+    -fx-background-color: transparent;
+    -fx-background: transparent;
+    -fx-border-width: 0;
+}
+.discussion-scroll > .viewport { -fx-background-color: transparent; }
+.discussion-section-label {
+    -fx-text-fill: rgba(0,212,255,0.6);
+    -fx-font-size: 10px;
+    -fx-font-family: "Courier New";
+    -fx-font-weight: bold;
+}
+.discussion-desc-area {
+    -fx-control-inner-background: #0a1628;
+    -fx-background-color: #0a1628;
+    -fx-text-fill: #ffffff;
+    -fx-prompt-text-fill: rgba(0,212,255,0.3);
+    -fx-border-color: rgba(0,212,255,0.22);
+    -fx-border-width: 1;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+    -fx-font-family: "Courier New";
+    -fx-font-size: 11px;
+}
+.discussion-desc-area .content { -fx-background-color: #0a1628; }
+.discussion-action-btn {
+    -fx-background-color: rgba(0,212,255,0.08);
+    -fx-text-fill: #00d4ff;
+    -fx-font-size: 11px;
+    -fx-font-family: "Courier New";
+    -fx-background-radius: 6;
+    -fx-padding: 7 12 7 12;
+    -fx-cursor: hand;
+    -fx-border-color: rgba(0,212,255,0.3);
+    -fx-border-width: 1;
+    -fx-border-radius: 6;
+}
+.comment-input-bar {
+    -fx-padding: 8 10 10 10;
+    -fx-border-color: rgba(0,212,255,0.15) transparent transparent transparent;
+    -fx-border-width: 1 0 0 0;
+    -fx-background-color: rgba(0,212,255,0.03);
+}
+.discussion-input-field {
+    -fx-background-color: rgba(0,212,255,0.05);
+    -fx-text-fill: #ffffff;
+    -fx-prompt-text-fill: rgba(0,212,255,0.3);
+    -fx-border-color: rgba(0,212,255,0.22);
+    -fx-border-width: 1;
+    -fx-border-radius: 6;
+    -fx-background-radius: 6;
+    -fx-font-family: "Courier New";
+    -fx-font-size: 11px;
+    -fx-padding: 6 8 6 8;
+}
+.discussion-send-btn {
+    -fx-background-color: rgba(0,212,255,0.15);
+    -fx-text-fill: #00d4ff;
+    -fx-font-size: 11px;
+    -fx-font-family: "Courier New";
+    -fx-background-radius: 6;
+    -fx-padding: 6 10 6 10;
+    -fx-cursor: hand;
+    -fx-border-color: #00d4ff;
+    -fx-border-width: 1;
+    -fx-border-radius: 6;
+}
+
+/* LIGHT */
+.root-light .tab-bar {
+    -fx-background-color: #c9cbc5;
+    -fx-border-color: transparent transparent #9ea69f transparent;
+}
+.root-light .tab-add-btn {
+    -fx-text-fill: #4f5d57;
+}
+.root-light .bookmarks-bar {
+    -fx-background-color: #cfcfc9;
+    -fx-border-color: transparent transparent #a4aba4 transparent;
+}
+.root-light .bookmarks-icon {
+    -fx-text-fill: #6c7a74;
+}
+.root-light .bookmarks-scroll > .viewport { -fx-background-color: transparent; }
+.root-light .bookmark-add-btn {
+    -fx-background-color: linear-gradient(to bottom, #d8dad4, #bcc2bc);
+    -fx-text-fill: #263631;
+    -fx-border-color: #8e9892;
+}
+.root-light .viewer-header,
+.root-light .viewer-seek-bar,
+.root-light .video-control-bar,
+.root-light .image-control-bar {
+    -fx-background-color: #c9cbc5;
+    -fx-border-color: transparent transparent #9ea69f transparent;
+}
+.root-light .viewer-title {
+    -fx-text-fill: #25342f;
+}
+.root-light .viewer-subtext {
+    -fx-text-fill: #40504a;
+}
+.root-light .viewer-action-btn {
+    -fx-background-color: linear-gradient(to bottom, #d8dad4, #bcc2bc);
+    -fx-text-fill: #263631;
+    -fx-border-color: #8e9892;
+}
+.root-light .viewer-play-btn {
+    -fx-background-color: #7f9488;
+    -fx-text-fill: #f4f4f0;
+}
+.root-light .viewer-icon-btn {
+    -fx-text-fill: #55645d;
+}
+.root-light .viewer-slider { -fx-accent: #6f7f76; }
+.root-light .video-view,
+.root-light .video-display,
+.root-light .image-view,
+.root-light .pdf-view,
+.root-light .image-scroll,
+.root-light .image-scroll > .viewport,
+.root-light .image-display {
+    -fx-background-color: #cacbc5;
+    -fx-background: #cacbc5;
+}
+.root-light .discussion-panel {
+    -fx-background-color: #cacbc5;
+    -fx-border-color: #9ea69f;
+}
+.root-light .discussion-header {
+    -fx-background-color: #d3d3cd;
+    -fx-border-color: transparent transparent #9ea69f transparent;
+}
+.root-light .discussion-title {
+    -fx-text-fill: #5d5a78;
+}
+.root-light .discussion-close-btn {
+    -fx-text-fill: #4a5550;
+}
+.root-light .discussion-section-label {
+    -fx-text-fill: #5b6762;
+}
+.root-light .discussion-desc-area {
+    -fx-control-inner-background: #dddcd6;
+    -fx-background-color: #dddcd6;
+    -fx-text-fill: #25342f;
+    -fx-prompt-text-fill: #6d7973;
+    -fx-border-color: #98a29b;
+}
+.root-light .discussion-desc-area .content { -fx-background-color: #dddcd6; }
+.root-light .discussion-action-btn {
+    -fx-background-color: linear-gradient(to bottom, #d8dad4, #bcc2bc);
+    -fx-text-fill: #263631;
+    -fx-border-color: #8e9892;
+}
+.root-light .comment-input-bar {
+    -fx-background-color: #d3d3cd;
+    -fx-border-color: #9ea69f transparent transparent transparent;
+}
+.root-light .discussion-input-field {
+    -fx-background-color: #dddcd6;
+    -fx-text-fill: #25342f;
+    -fx-prompt-text-fill: #6d7973;
+    -fx-border-color: #98a29b;
+}
+.root-light .discussion-send-btn {
+    -fx-background-color: linear-gradient(to bottom, #adb9af, #97aaa0);
+    -fx-text-fill: #1e2d28;
+    -fx-border-color: #7e9087;
+}

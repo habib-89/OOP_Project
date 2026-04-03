@@ -33,7 +33,6 @@ import javafx.scene.control.TextField;
 
 public class DashboardController {
 
-
     @FXML private Label welcomeLabel;
     @FXML private Label statusLabel;
     @FXML private ImageView imagePreview;
@@ -92,7 +91,7 @@ public class DashboardController {
     @FXML private javafx.scene.layout.VBox commentsBox;
     @FXML private TextField commentInputField;
     private String currentDiscussionFile = null;
-    private boolean discussionListenerActive = false;
+    private boolean groupDiscussionListenerActive = false;
 
     // ── Media state ───────────────────────────────────────────────────────────
     private MediaPlayer mediaPlayer;
@@ -134,6 +133,7 @@ public class DashboardController {
     private long lastClickTime = 0;
 
 
+
     private void openDiscussionInPanel(String fileName) {
         if (currentGroupId == null) return;
         currentDiscussionFile = fileName;
@@ -147,9 +147,10 @@ public class DashboardController {
         commentInputField.clear();
 
         loadDiscussionInPanel(fileName);
-        startDiscussionListener();
+        startGroupDiscussionListener();
         statusLabel.setText("Discussion loaded for: " + fileName);
     }
+
 
     private void loadDiscussionInPanel(String fileName) {
         try {
@@ -229,9 +230,9 @@ public class DashboardController {
         }
     }
 
+
     @FXML
     private void handleCloseDiscussion() {
-        stopDiscussionListener();
         currentDiscussionFile = null;
         discussionPanel.setVisible(false);
         discussionPanel.setManaged(false);
@@ -239,6 +240,44 @@ public class DashboardController {
         previewPanel.setManaged(true);
         showNoPreview("Select a file to preview");
         statusLabel.setText("");
+    }
+
+
+
+    private void startGroupDiscussionListener() {
+        if (groupDiscussionListenerActive || currentGroupId == null || network == null) return;
+
+        try {
+            network.startGroupDiscussionListener(currentGroupId, payload ->
+                    javafx.application.Platform.runLater(() -> {
+                        if (payload == null || payload.isBlank()) return;
+
+                        String[] parts = payload.split("\\|", 2);
+                        String updatedGroupId = parts.length > 0 ? parts[0] : "";
+                        String updatedFileName = parts.length > 1 ? parts[1] : "";
+
+                        if (!updatedGroupId.equals(currentGroupId)) return;
+
+                        if (currentDiscussionFile != null && currentDiscussionFile.equals(updatedFileName)
+                                && discussionPanel != null && discussionPanel.isVisible()) {
+                            loadDiscussionInPanel(currentDiscussionFile);
+                            statusLabel.setText("New message received in " + updatedFileName);
+                        } else if (!updatedFileName.isEmpty()) {
+                            statusLabel.setText("New group comment in: " + updatedFileName);
+                        }
+                    })
+            );
+            groupDiscussionListenerActive = true;
+        } catch (Exception e) {
+            statusLabel.setText("Live group updates unavailable: " + e.getMessage());
+        }
+    }
+
+    private void stopGroupDiscussionListener() {
+        groupDiscussionListenerActive = false;
+        if (network != null) {
+            network.stopGroupDiscussionListener();
+        }
     }
 
     // =========================================================================
@@ -1232,7 +1271,7 @@ public class DashboardController {
     // =========================================================================
 
     @FXML private void handleNavFiles() {
-        stopDiscussionListener();
+        stopGroupDiscussionListener();
         removeCommentColumn();
         inRecycleBin=false; inSharedView=false; inGroupView=false;
         currentPath=""; currentGroupId=null; currentGroupName=null; currentGroupPath="";
@@ -1247,7 +1286,7 @@ public class DashboardController {
     }
 
     @FXML private void handleNavRecycleBin() {
-        stopDiscussionListener();
+        stopGroupDiscussionListener();
         removeCommentColumn();
         inRecycleBin=true; inSharedView=false; inGroupView=false;
         currentGroupId=null; currentGroupName=null; currentGroupPath="";
@@ -1262,7 +1301,7 @@ public class DashboardController {
     }
 
     @FXML private void handleNavShared() {
-        stopDiscussionListener();
+        stopGroupDiscussionListener();
         removeCommentColumn();
         inSharedView=true; inRecycleBin=false; inGroupView=false;
         currentGroupId=null; currentGroupName=null; currentGroupPath="";
@@ -1277,7 +1316,7 @@ public class DashboardController {
     }
 
     @FXML private void handleNavGroups() {
-        stopDiscussionListener();
+        stopGroupDiscussionListener();
         inGroupView=true; inSharedView=false; inRecycleBin=false;
         currentGroupId=null; currentGroupName=null; currentGroupPath="";
         syncActiveTabState(); updateNavigationStyles(); updateActionButtons(); refreshGroups();
@@ -1345,10 +1384,14 @@ public class DashboardController {
                     NetworkManager.GroupInfo info = null;
                     try { for (NetworkManager.GroupInfo g : network.listGroups()) if (g.groupId.equals(selected.getRawName())) { info = g; break; } }
                     catch (Exception ignored) {}
+                    stopGroupDiscussionListener();
                     currentGroupId   = selected.getRawName();
                     currentGroupName = info != null ? info.groupName : "Group";
                     currentGroupPath = "";
-                    syncActiveTabState(); showNoPreview("Select a file to preview"); refreshGroupFiles();
+                    syncActiveTabState();
+                    startGroupDiscussionListener();
+                    showNoPreview("Select a file to preview");
+                    refreshGroupFiles();
                 }
                 return;
             }
@@ -1615,6 +1658,7 @@ public class DashboardController {
         if (inGroupView) {
             if (currentGroupId == null) { statusLabel.setText("Already at Groups root."); return; }
             if (currentGroupPath == null || currentGroupPath.isEmpty()) {
+                stopGroupDiscussionListener();
                 removeCommentColumn();
                 currentGroupId = null; currentGroupName = null; currentGroupPath = "";
                 syncActiveTabState(); showNoPreview("Select a group or file."); refreshGroups(); return;
@@ -1770,6 +1814,7 @@ public class DashboardController {
 
     @FXML
     private void handleLogout() {
+        stopGroupDiscussionListener();
         if (mediaPlayer != null) {
             mediaPlayer.stop();
             mediaPlayer.dispose();
@@ -1866,32 +1911,7 @@ public class DashboardController {
     }
 
 
-
-    private void startDiscussionListener() {
-        if (discussionListenerActive || currentDiscussionFile == null || currentGroupId == null || network == null) return;
-
-        try {
-            network.startDiscussionListener(currentGroupId, currentDiscussionFile, msg ->
-                    javafx.application.Platform.runLater(() -> {
-                        if (currentDiscussionFile != null && discussionPanel.isVisible()) {
-                            loadDiscussionInPanel(currentDiscussionFile);
-                        }
-                    })
-            );
-            discussionListenerActive = true;
-        } catch (Exception e) {
-            statusLabel.setText("Live discussion unavailable: " + e.getMessage());
-        }
-    }
-
-    private void stopDiscussionListener() {
-        discussionListenerActive = false;
-        if (network != null) {
-            network.stopDiscussionListener();
-        }
-    }
-
-// ================= COMMENT SYSTEM =================
+    // ================= COMMENT SYSTEM =================
 
     private void openDiscussionPanel(String fileName) {
         if (network == null || currentGroupId == null) return;
@@ -1975,4 +1995,6 @@ public class DashboardController {
         }
     }
 
+
+    
 }

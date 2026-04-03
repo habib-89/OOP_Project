@@ -390,11 +390,11 @@ public class NetworkManager {
     }
 
 
-    public void startDiscussionListener(String groupId, String fileName, Consumer<String> onUpdate) throws Exception {
-        stopDiscussionListener();
+    public void startGroupDiscussionListener(String groupId, Consumer<String> onUpdate) throws Exception {
+        stopGroupDiscussionListener();
 
         if (sessionUsername == null || sessionPassword == null) {
-            throw new IllegalStateException("Live discussion requires a logged-in session.");
+            throw new IllegalStateException("User is not logged in.");
         }
 
         liveSocket = new Socket(serverHost, 5001);
@@ -404,25 +404,24 @@ public class NetworkManager {
         liveOut.writeUTF("LOGIN " + sessionUsername + " " + sessionPassword);
         String loginResponse = liveIn.readUTF();
         if (!"SUCCESS".equals(loginResponse)) {
-            stopDiscussionListener();
-            throw new IOException("Live discussion login failed.");
+            stopGroupDiscussionListener();
+            throw new IOException("Live listener login failed: " + loginResponse);
         }
 
-        liveOut.writeUTF("SUBSCRIBE_DISCUSSION " + groupId + "|" + fileName);
+        liveOut.writeUTF("SUBSCRIBE_GROUP_DISCUSSION " + groupId);
         String subscribeResponse = liveIn.readUTF();
         if (!"SUBSCRIBE_SUCCESS".equals(subscribeResponse)) {
-            stopDiscussionListener();
-            throw new IOException(subscribeResponse);
+            stopGroupDiscussionListener();
+            throw new IOException("Subscription failed: " + subscribeResponse);
         }
 
         liveListenerThread = new Thread(() -> {
             try {
                 while (liveSocket != null && !liveSocket.isClosed()) {
-                    String message = liveIn.readUTF();
-                    if (message != null && message.startsWith("DISCUSSION_UPDATE ")) {
-                        if (onUpdate != null) {
-                            onUpdate.accept(message);
-                        }
+                    String msg = liveIn.readUTF();
+                    if (msg != null && msg.startsWith("GROUP_DISCUSSION_UPDATE ")) {
+                        String payload = msg.substring("GROUP_DISCUSSION_UPDATE ".length());
+                        if (onUpdate != null) onUpdate.accept(payload);
                     }
                 }
             } catch (Exception ignored) {
@@ -432,14 +431,13 @@ public class NetworkManager {
         liveListenerThread.start();
     }
 
-    public void stopDiscussionListener() {
+    public void stopGroupDiscussionListener() {
         try {
             if (liveOut != null) {
-                liveOut.writeUTF("UNSUBSCRIBE_DISCUSSION");
+                liveOut.writeUTF("UNSUBSCRIBE_GROUP_DISCUSSION");
                 liveOut.flush();
             }
-        } catch (Exception ignored) {
-        }
+        } catch (Exception ignored) {}
 
         try { if (liveIn != null) liveIn.close(); } catch (Exception ignored) {}
         try { if (liveOut != null) liveOut.close(); } catch (Exception ignored) {}

@@ -166,7 +166,7 @@ public class LoginController {
     @FXML
     private void handleLogin() {
         try {
-            network.setServerHost("192.168.0.104");
+            network.setServerHost("192.168.1.4");
             network.connect();
             String username = usernameField.getText().trim();
             String password = passwordField.getText();
